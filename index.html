@@ -1025,6 +1025,22 @@
     margin-top: 6px;
     font-style: italic;
   }
+  /* Cloze/fill-in-the-blank: the sentence reads as normal body text with
+     the missing word rendered as a distinct blank, rather than the huge
+     .prompt-word treatment - it's a sentence to read, not a single word
+     to react to. */
+  .cloze-sentence {
+    font-family: 'Sora', sans-serif;
+    font-weight: 600;
+    font-size: 22px;
+    line-height: 1.5;
+  }
+  .cloze-blank {
+    display: inline-block;
+    min-width: 60px;
+    border-bottom: 2px solid var(--ochre);
+    color: var(--ochre);
+  }
   .speak-btn {
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--outline);
@@ -1625,7 +1641,7 @@
   // Simplified Leitner-style spaced repetition: box index -> days until next due
   const SRS_INTERVALS_DAYS = [0, 1, 3, 7, 16, 35];
   const STREAM_CHECKPOINT_SIZE = 20; // how many stream questions between "keep going / stop" checkpoints
-  const STREAM_FORMATS = ['mc', 'audio', 'type'];
+  const STREAM_FORMATS = ['mc', 'audio', 'type', 'cloze'];
 
   function defaultProgress() {
     return {
@@ -2331,7 +2347,7 @@
     streamCheckpointCount: 0, // answers since the last checkpoint (0-9), resets each checkpoint
     streamSessionStreak: 0,      // correct-in-a-row within THIS stream session only (Locked In) — same session-only pattern as taStreak
     streamSessionCheckpoints: 0, // checkpoints reached in one continuous sitting, without stopping (Marathon Session)
-    streamFormatsCorrect: {},    // which formats (mc/audio/type) have had a correct answer this session (Triple Threat)
+    streamFormatsCorrect: {},    // which formats (mc/audio/type/cloze) have had a correct answer this session (Triple Threat only requires mc/audio/type)
     taActive: false,
     taScore: 0,
     taStreak: 0,
@@ -2404,6 +2420,47 @@
   // them via splitAnswers(); this is display-only.
   function primaryText(field) {
     return splitAnswers(field)[0] || '';
+  }
+
+  // The field a question's typed/chosen answer is actually checked
+  // against. Cloze always tests the Spanish word itself, regardless of
+  // the direction randomly assigned to that question - there's no
+  // "translate this" step, just "what word is missing".
+  function targetFieldFor(current) {
+    if (current.format === 'cloze') return current.es;
+    return current.direction === 'es-en' ? current.en : current.es;
+  }
+
+  // Finds pair.es (or its regular plural) inside pair.sentence and
+  // returns the surrounding text split around it, ready to render with a
+  // blank in place of the match. Mirrors the exact matching logic used to
+  // author and validate the Sentence column, so anything that passed
+  // validation there is guaranteed to blank cleanly here. Returns null if
+  // the word truly isn't found (used both to disable cloze for a row at
+  // load time and, defensively, again at render time).
+  function findClozeBlank(pair) {
+    if (!pair.sentence) return null;
+    const es = pair.es;
+    const forms = [es];
+    if (/[aeiouáéíóú]$/i.test(es)) forms.push(es + 's');
+    else if (/ón$/i.test(es)) forms.push(es.slice(0, -2) + 'ones');
+    else if (/z$/i.test(es)) forms.push(es.slice(0, -1) + 'ces');
+    else forms.push(es + 'es');
+    const boundary = 'a-zA-ZáéíóúñÁÉÍÓÚÑ';
+    for (const form of forms) {
+      const escaped = form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const re = new RegExp(`(?<![${boundary}])${escaped}(?![${boundary}])`, 'i');
+      const match = pair.sentence.match(re);
+      if (match) {
+        const idx = match.index;
+        return {
+          before: pair.sentence.slice(0, idx),
+          matched: match[0],
+          after: pair.sentence.slice(idx + match[0].length),
+        };
+      }
+    }
+    return null;
   }
 
   // The word pool every quiz-family function should read from: the active
@@ -2523,6 +2580,11 @@
     for (let i = 0; i < count; i++) {
       const p = weightedPickOne(pairs, getWeight, lastKey);
       lastKey = wordKey(p);
+      let format = STREAM_FORMATS[(startPosition + i) % STREAM_FORMATS.length];
+      // Cloze only works for words that actually have sentence data -
+      // most won't yet. Falling back to typed translation keeps the
+      // rotation's cadence intact instead of skipping this word entirely.
+      if (format === 'cloze' && !findClozeBlank(p)) format = 'type';
       batch.push({
         ...p,
         direction: Math.random() < 0.5 ? 'es-en' : 'en-es',
@@ -2530,7 +2592,7 @@
         // so format rotation stays deliberate across batch top-ups instead
         // of risking two of the same format landing back-to-back at a
         // batch boundary.
-        format: STREAM_FORMATS[(startPosition + i) % STREAM_FORMATS.length],
+        format,
       });
     }
     return batch;
@@ -2904,6 +2966,7 @@
     const seenEs = new Set();
     const dupes = [];
     const unknownCats = new Set();
+    const badSentences = [];
     let skipped = 0;
     for (let i = startIdx; i < rows.length; i++) {
       const row = rows[i];
@@ -2912,6 +2975,7 @@
       const en = (row[1] ?? '').toString().trim();
       const note = (row[2] ?? '').toString().trim();
       const category = (row[3] ?? '').toString().trim();
+      const sentence = (row[4] ?? '').toString().trim();
       if (!es && !en) continue; // fully blank row - not worth flagging
       if (!es || !en) { skipped++; continue; }
       const esKey = es.toLowerCase();
@@ -2922,11 +2986,22 @@
           if (tag !== 'conjugation' && !CATEGORIES.some(c => c.id === tag)) unknownCats.add(tag);
         });
       }
-      cleaned.push({ es, en, note, category });
+      const pair = { es, en, note, category, sentence };
+      if (sentence && !findClozeBlank(pair)) {
+        // A sentence that doesn't actually contain its own target word
+        // (typo, wrong row, edited word without updating the sentence)
+        // would either break rendering or silently reveal nothing to
+        // blank - drop it rather than risk either, this word just isn't
+        // cloze-eligible until the sheet is fixed.
+        badSentences.push(es);
+        pair.sentence = '';
+      }
+      cleaned.push(pair);
     }
     if (skipped > 0) console.warn(`Palabra: skipped ${skipped} row(s) with only one of Spanish/English filled in.`);
     if (dupes.length > 0) console.warn(`Palabra: duplicate Spanish word(s) in the sheet: ${dupes.join(', ')}`);
     if (unknownCats.size > 0) console.warn(`Palabra: unrecognized category tag(s): ${[...unknownCats].join(', ')}`);
+    if (badSentences.length > 0) console.warn(`Palabra: sentence doesn't contain its own word, cloze disabled for: ${badSentences.join(', ')}`);
     return cleaned;
   }
 
@@ -3137,7 +3212,7 @@
     // Stream decides choice-vs-type per question (current.format); every
     // other mode still uses the single round-level answerMode setting.
     const useChoiceMode = state.isStreamRound
-      ? (current && current.format !== 'type')
+      ? (current && current.format !== 'type' && current.format !== 'cloze')
       : (state.effectiveAnswerMode === 'choice');
     if (useChoiceMode && current) {
       const targetField = current.direction === 'es-en' ? current.en : current.es;
@@ -3169,11 +3244,11 @@
   }
 
   function recordAnswer(current, correct, userAnswerDisplay) {
-    const targetField = current.direction === 'es-en' ? current.en : current.es;
+    const targetField = targetFieldFor(current);
     state.wasCorrect = correct;
     state.checked = true;
     state.results.push({
-      prompt: primaryText(current.direction === 'es-en' ? current.es : current.en),
+      prompt: current.format === 'cloze' ? primaryText(current.es) : primaryText(current.direction === 'es-en' ? current.es : current.en),
       correctAnswer: primaryText(targetField),
       userAnswer: userAnswerDisplay,
       correct,
@@ -3252,7 +3327,7 @@
   function submitAnswer() {
     const current = state.questions[state.index];
     if (!current || state.checked) return;
-    const targetField = current.direction === 'es-en' ? current.en : current.es;
+    const targetField = targetFieldFor(current);
     const userNorm = normalize(state.input);
     const acceptable = splitAnswers(targetField).map(normalize);
     let correct = false;
@@ -5172,20 +5247,29 @@
       });
     }
 
-    const promptWord = primaryText(current.direction === 'es-en' ? current.es : current.en);
-    const answerWord = primaryText(current.direction === 'es-en' ? current.en : current.es);
-    const promptLang = current.direction === 'es-en' ? 'es-ES' : 'en-US';
-    const answerLang = current.direction === 'es-en' ? 'en-US' : 'es-ES';
+    const clozeBlank = current.format === 'cloze' ? findClozeBlank(current) : null;
+    const clozeFallback = current.format === 'cloze' && !clozeBlank;
+    const promptWord = (current.format === 'cloze' && clozeBlank) ? current.sentence
+      : clozeFallback ? primaryText(current.en)
+      : primaryText(current.direction === 'es-en' ? current.es : current.en);
+    const answerWord = current.format === 'cloze' ? primaryText(current.es) : primaryText(current.direction === 'es-en' ? current.en : current.es);
+    const promptLang = (current.format === 'cloze' && clozeBlank) ? 'es-ES'
+      : clozeFallback ? 'en-US'
+      : (current.direction === 'es-en' ? 'es-ES' : 'en-US');
+    const answerLang = current.format === 'cloze' ? 'es-ES' : (current.direction === 'es-en' ? 'en-US' : 'es-ES');
     // The Note column disambiguates the English gloss specifically - only
     // relevant wherever English text is what's being shown, whether that's
     // the prompt (EN→ES) or the reveal (ES→EN, wrong or typo-forgiven).
-    const promptNote = current.direction !== 'es-en' ? (current.note || '') : '';
-    const answerNote = current.direction === 'es-en' ? (current.note || '') : '';
+    // Cloze never shows it - the prompt is a Spanish sentence, not a gloss.
+    const promptNote = (current.format !== 'cloze' && current.direction !== 'es-en') ? (current.note || '') : '';
+    const answerNote = (current.format !== 'cloze' && current.direction === 'es-en') ? (current.note || '') : '';
 
     // Stream decides choice-vs-type per question; every other mode still
-    // uses the single round-level answerMode setting.
+    // uses the single round-level answerMode setting. Cloze is always
+    // typed - a word bank would just hand back the ambiguity problem the
+    // format exists to avoid (see the sentence-writing discussion).
     const useChoice = state.isStreamRound
-      ? (current.format !== 'type' && state.currentOptions)
+      ? (current.format !== 'type' && current.format !== 'cloze' && state.currentOptions)
       : (state.effectiveAnswerMode === 'choice' && state.currentOptions);
     const shouldFlip = state.lastFlippedIndex !== state.index;
     if (shouldFlip) state.lastFlippedIndex = state.index;
@@ -5196,7 +5280,7 @@
     // the feedback screen for question 10 briefly claims to be question 11.
     const streamQuestionNum = state.results.length + (state.checked ? 0 : 1);
     const progressLabel = state.isStreamRound
-      ? `Question ${streamQuestionNum} · ${isAudioFormat ? 'LISTEN' : (current.direction === 'es-en' ? 'ES → EN' : 'EN → ES')}`
+      ? `Question ${streamQuestionNum} · ${isAudioFormat ? 'LISTEN' : (current.format === 'cloze' && clozeBlank ? 'FILL IN THE BLANK' : (current.direction === 'es-en' ? 'ES → EN' : 'EN → ES'))}`
       : `${state.index + 1} / ${state.questions.length} · ${current.direction === 'es-en' ? 'ES → EN' : 'EN → ES'}`;
 
     const orbHtml = state.isStreamRound
@@ -5208,15 +5292,24 @@
     // free rather than needing separate wiring per mode. Audio format
     // already has its own hint ("Listen, then choose...") below, so it's
     // skipped here to avoid saying the same thing twice.
-    const instructionText = isAudioFormat ? '' : useChoice
+    const instructionText = isAudioFormat ? '' : (current.format === 'cloze' && clozeBlank) ? 'Type the missing word'
+      : clozeFallback ? 'Type the word in Spanish'
+      : useChoice
       ? (current.direction === 'es-en' ? 'What does this mean?' : 'How do you say this in Spanish?')
       : (current.direction === 'es-en' ? 'Type the English translation' : 'Type the word in Spanish');
 
     // Audio format hides the written word entirely — listening is the
     // exercise — and always speaks it (see the autoSpeak binding below),
-    // regardless of the user's own "speak words aloud" setting.
+    // regardless of the user's own "speak words aloud" setting. Cloze
+    // shows the sentence with the target word blanked instead of a single
+    // big prompt word; if the blank couldn't be found (shouldn't happen —
+    // buildStreamBatch already checks — but a defensive fallback matters
+    // more than a broken screen) it just renders like a normal typed
+    // question instead.
     const promptRowHtml = isAudioFormat
       ? `<button id="speak-prompt-btn" class="speak-btn big" title="Hear it">🔊</button><div class="audio-hint">Listen, then choose the meaning</div>`
+      : (current.format === 'cloze' && clozeBlank)
+      ? `<div class="audio-hint" style="margin-bottom:10px;">${instructionText}</div><div class="cloze-sentence">${esc(clozeBlank.before)}<span class="cloze-blank">____</span>${esc(clozeBlank.after)}</div><button id="speak-prompt-btn" class="speak-btn" title="Hear it" style="margin-top:10px;">🔊</button>`
       : `<div class="audio-hint" style="margin-bottom:10px;">${instructionText}</div><div class="prompt-row"><div class="prompt-word">${esc(promptWord)}</div><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button></div>${promptNote ? `<div class="prompt-note">${esc(promptNote)}</div>` : ''}`;
 
     let bottomHtml;
