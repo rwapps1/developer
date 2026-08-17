@@ -1,0 +1,613 @@
+/* Shared building blocks used across multiple screens: page chrome (wordmark,
+   eyebrow, badge, card), buttons, inputs, the settings menu, hub tiles/banners,
+   back button, level ring, stat strip, generic status/loading indicators, and
+   the initial app-loading screen.
+   Split from index.html — see palabra-file-split-plan.md. */
+
+  .wordmark-accent { color: #FFFFFF; }
+
+  .wrap { width: 100%; max-width: 420px; perspective: 700px; position: relative; }
+
+  .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11.5px;
+    letter-spacing: 2px;
+    color: var(--label);
+    text-transform: uppercase;
+    text-align: center;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 10px 0 4px;
+  }
+  /* The one deliberate flag nod: a glass medallion banded rojo-oro-rojo */
+  .badge {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #C60B1E 0 25%, #FFC400 25% 75%, #C60B1E 75% 100%);
+    box-shadow: 0 0 20px rgba(255,196,0,0.45), inset 0 2px 3px rgba(255,255,255,0.45), inset 0 -3px 6px rgba(0,0,0,0.3);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .badge::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 33% 25%, rgba(255,255,255,0.6), transparent 55%);
+  }
+  h1 {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    margin: 0;
+    line-height: 1.1;
+    text-align: center;
+  }
+  .sub {
+    color: var(--cream-dim);
+    font-size: 15px;
+    line-height: 1.5;
+    text-align: center;
+    margin: 0 0 20px;
+  }
+
+  .card {
+    background: var(--bg-card);
+    border-radius: 22px;
+    padding: 18px;
+    border: 1px solid var(--outline);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .menu-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--outline);
+    background: rgba(255,255,255,0.06);
+    color: var(--cream);
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Developer contact — small dev-logo avatar + "Live Chat on Telegram" pill,
+     reused on the login screen (footer, below the auth card) and inside the
+     ⋯ settings dropdown (as a plain link row). */
+  .dev-contact {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .dev-contact img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 12px rgba(139,92,246,0.4);
+  }
+  .dev-contact-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--outline);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .tg-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #29A9EA;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tg-icon svg { display: block; }
+  .dev-contact-logo-sm {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .menu-overlay { position: fixed; inset: 0; z-index: 50; }
+  .menu-dropdown {
+    position: absolute;
+    top: 46px;
+    right: 0;
+    z-index: 60;
+    background: rgba(20,14,34,0.92);
+    border: 1px solid var(--outline);
+    border-radius: 16px;
+    padding: 6px;
+    min-width: 230px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.45);
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 12px;
+    border-radius: 10px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu-item:hover { background: rgba(255,255,255,0.08); }
+  .menu-item-meta { color: var(--cream-dim); font-size: 12px; flex-shrink: 0; }
+
+  /* Consistent back-to-hub control, used on every non-active-gameplay screen */
+  .back-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid var(--outline);
+    background: rgba(255,255,255,0.06);
+    color: var(--cream);
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .screen-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    width: 100%;
+  }
+  .screen-header .screen-title {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 24px;
+  }
+  /* Used on the per-game options screens: header stays pinned top, body centers
+     vertically in whatever space is left, now that those screens hold less content. */
+  .wrap-centered { flex: 1; display: flex; flex-direction: column; }
+  .screen-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  .game-icon-badge {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    margin-bottom: 18px;
+  }
+  .quit-link {
+    background: none;
+    border: none;
+    color: var(--cream-dim);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* Hub game-picker tiles */
+  .game-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .game-tile {
+    background: var(--bg-card);
+    border: 1px solid var(--outline);
+    border-radius: 20px;
+    padding: 14px;
+    text-align: left;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
+    cursor: pointer;
+    color: var(--cream);
+  }
+  .game-tile:disabled { cursor: not-allowed; opacity: 0.4; }
+  .game-tile .tile-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    margin-bottom: 2px;
+  }
+  .game-tile .tile-name { font-weight: 700; font-size: 14px; font-family: 'Inter', sans-serif; }
+  .game-tile .tile-meta { font-size: 11px; color: var(--cream-dim); }
+  .game-tile.locked { opacity: 0.45; }
+  .game-tile .tile-soon {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--label);
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    padding: 2px 6px;
+  }
+  /* Small "this is tappable" hint, used specifically on the Achievements
+     group tiles — without it, next to the arrow-carrying Stream banner
+     above them, the 4 grid tiles read as static info rather than links. */
+  .game-tile .tile-corner-arrow {
+    position: absolute;
+    bottom: 12px;
+    right: 14px;
+    font-size: 16px;
+    color: var(--cream-dim);
+  }
+
+  /* Achievements sits apart from the game grid on purpose - a full-width
+     row rather than a tile, so it reads as a progress summary, not a game. */
+  /* "Choose a specific mode" sits directly below the Stream hero card,
+     above the Achievements/Progress/Level banners — same self-contained
+     pattern as those, its own border-color accent (neutral, since it
+     isn't tied to one particular game's color the way the tiles behind
+     it are). */
+  .modes-banner {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    margin-top: 4px;
+    margin-bottom: 14px;
+    padding: 12px 16px;
+    border-color: var(--outline);
+  }
+  .modes-banner .tile-icon-wrap { margin-bottom: 0; flex-shrink: 0; }
+  .modes-banner .banner-text { flex: 1; }
+  .modes-banner .banner-name { font-weight: 700; font-size: 15px; font-family: 'Inter', sans-serif; }
+  .modes-banner .banner-meta { font-size: 12px; color: var(--cream-dim); margin-top: 2px; }
+  .modes-banner .banner-arrow { color: var(--cream-dim); font-size: 18px; flex-shrink: 0; }
+
+  /* Stream's achievement group gets top billing on the Achievements
+     screen — full-width like the home screen banners, not one of the
+     equal-sized tiles below, since Stream is expected to be the most-
+     played mode going forward. */
+  .stream-achievement-banner {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 108px;
+    margin-bottom: 14px;
+    padding: 18px 18px;
+    border-color: rgba(255,193,99,0.45);
+  }
+  .stream-achievement-banner .tile-icon-wrap { width: 52px; height: 52px; font-size: 24px; margin-bottom: 0; flex-shrink: 0; }
+  .stream-achievement-banner .banner-text { flex: 1; }
+  .stream-achievement-banner .banner-name { font-weight: 700; font-size: 17px; font-family: 'Inter', sans-serif; }
+  .stream-achievement-banner .banner-meta { font-size: 13px; color: var(--cream-dim); margin-top: 4px; }
+  .stream-achievement-banner .banner-arrow { color: var(--ochre); font-size: 20px; flex-shrink: 0; }
+
+  .achievements-banner {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-color: rgba(255,193,99,0.35);
+  }
+  .achievements-banner .tile-icon-wrap { margin-bottom: 0; flex-shrink: 0; }
+  .achievements-banner .banner-text { flex: 1; }
+  .achievements-banner .banner-name { font-weight: 700; font-size: 15px; font-family: 'Inter', sans-serif; }
+  .achievements-banner .banner-meta { font-size: 12px; color: var(--cream-dim); margin-top: 2px; }
+  .achievements-banner .banner-arrow { color: var(--ochre); font-size: 18px; flex-shrink: 0; }
+
+  /* My Progress sits as a second banner below Achievements — same
+     "not a game" framing. Written as its own self-contained block (not
+     extending .achievements-banner) to avoid the kind of cross-rule
+     cascade surprise documented elsewhere in this file. */
+  .progress-banner {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px 16px;
+    border-color: rgba(201,168,255,0.35);
+  }
+  .progress-banner .tile-icon-wrap { margin-bottom: 0; flex-shrink: 0; }
+  .progress-banner .banner-text { flex: 1; }
+  .progress-banner .banner-name { font-weight: 700; font-size: 15px; font-family: 'Inter', sans-serif; }
+  .progress-banner .banner-meta { font-size: 12px; color: var(--cream-dim); margin-top: 2px; }
+  .progress-banner .banner-arrow { color: var(--label); font-size: 18px; flex-shrink: 0; }
+
+  /* Level banner — third in the stack, below Achievements and My Progress.
+     Self-contained for the same reason as the two above it. */
+  .level-banner { flex-direction: row; align-items: center; gap: 14px; width: 100%; margin-top: 10px; padding: 12px 16px; border-color: rgba(255,193,99,0.45); }
+  .level-banner .banner-text { flex: 1; }
+  .level-banner .banner-name { font-weight: 700; font-size: 15px; font-family: 'Inter', sans-serif; }
+  .level-banner .banner-meta { font-size: 12px; color: var(--cream-dim); margin-top: 5px; display: flex; align-items: center; gap: 8px; }
+  .level-banner .banner-arrow { color: var(--ochre); font-size: 18px; flex-shrink: 0; }
+
+  .xp-track { flex: 1; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; }
+  .xp-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #FFC163, #FF9F4D); }
+
+  /* The level ring — a conic-gradient progress ring standing in for "% of
+     the way to next level", with a gold glow tying it to the Achievements
+     color language. Level number sits in the cut-out center. */
+  .level-ring {
+    --pct: 0%;
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    background: conic-gradient(#FFC163 0% var(--pct), rgba(255,255,255,0.14) var(--pct) 100%);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 14px rgba(255,193,99,0.35);
+  }
+  .level-ring.small { width: 26px; height: 26px; box-shadow: none; }
+  .level-ring-inner {
+    width: 34px; height: 34px; border-radius: 50%; background: #1B1030;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .level-ring.small .level-ring-inner { width: 20px; height: 20px; }
+  .level-ring-num { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 13px; color: var(--cream); }
+  .level-ring.small .level-ring-num { font-size: 9px; }
+
+  /* Top-of-home stat strip: streak + a compact level ring, sharing the
+     space the plain streak line used to occupy on its own. */
+  .stat-strip { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 10px 0 18px; }
+  .stat-strip .divider { width: 1px; height: 14px; background: var(--outline); }
+  .stat-strip .streak-text { font-size: 14px; color: var(--cream-dim); font-variant-numeric: tabular-nums; }
+  .stat-strip .level-mini { display: flex; align-items: center; gap: 6px; }
+  .stat-strip .level-mini-text { font-size: 13px; font-weight: 700; color: var(--ochre); }
+
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--outline);
+    border-top-color: var(--ochre);
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .dropzone {
+    display: block;
+    text-align: center;
+    padding: 28px 16px;
+    border: 2px dashed var(--outline);
+    border-radius: 18px;
+    cursor: pointer;
+    margin-bottom: 16px;
+    background: rgba(255,255,255,0.03);
+  }
+  .dropzone .icon { font-size: 28px; margin-bottom: 6px; }
+  .dropzone .name { font-weight: 600; }
+  .dropzone .hint { font-size: 13px; color: var(--cream-dim); margin-top: 4px; }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--cream-dim);
+    margin-bottom: 16px;
+  }
+
+  .msg-error {
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--red);
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .msg-ok {
+    font-size: 14px;
+    color: var(--green);
+    margin-bottom: 16px;
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--label);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 16px;
+    display: inline-block;
+  }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+  }
+  .btn-primary {
+    width: 100%;
+    padding: 14px 0;
+    border-radius: 16px;
+    border: none;
+    font-weight: 700;
+    font-size: 16px;
+    background: var(--ochre);
+    color: #241608;
+  }
+  .btn-primary:disabled {
+    cursor: not-allowed;
+    background: var(--outline);
+    color: var(--cream-dim);
+  }
+  .btn-secondary {
+    padding: 12px 0;
+    border-radius: 16px;
+    border: 1px solid var(--outline);
+    font-weight: 600;
+    font-size: 14px;
+    background: rgba(255,255,255,0.06);
+    color: var(--cream);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--outline);
+    background: var(--bg-card-alt);
+    color: var(--cream);
+    font-size: 16px;
+    margin-bottom: 12px;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+  }
+  input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus {
+    border-color: var(--ochre);
+  }
+
+  /* Home screen: Stream hero card */
+  .stream-hero { position: relative; margin: 4px 0 18px; padding: 20px; text-align: center; }
+  .stream-hero .format-row { display: flex; gap: 8px; margin-bottom: 14px; justify-content: center; }
+  .stream-hero .fchip {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid var(--outline);
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .stream-hero h2 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 21px; margin: 0 0 6px; }
+  .stream-hero p { font-size: 13px; color: var(--cream-dim); margin: 0 0 16px; line-height: 1.5; }
+
+  /* --- App loading screen: shown while loadFromRepo() fetches the word list --- */
+  #app-loading {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    z-index: 9999;
+    transition: opacity 0.4s ease;
+  }
+  #app-loading.fade-out { opacity: 0; pointer-events: none; }
+
+  #app-loading .loader-orb {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 28px rgba(255,196,0,0.4), 0 14px 30px -8px rgba(0,0,0,0.6);
+    animation: loader-pulse 1.4s ease-in-out infinite;
+  }
+  #app-loading .loader-orb-inner {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #C60B1E 0 25%, #FFC400 25% 75%, #C60B1E 75% 100%);
+    animation: loader-spin 10s linear infinite;
+  }
+  #app-loading .loader-orb::after {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 33% 25%, rgba(255,255,255,0.6), transparent 55%);
+  }
+  #app-loading .loader-sweep {
+    position: absolute;
+    top: -20%;
+    left: -60%;
+    width: 45%;
+    height: 140%;
+    background: linear-gradient(115deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.9) 50%, rgba(255,255,255,0) 100%);
+    transform: rotate(8deg);
+    animation: loader-sweep 1.8s ease-in-out infinite;
+  }
+  #app-loading .loader-caption {
+    margin-top: 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cream-dim);
+  }
+  #app-loading .loader-caption .dots span {
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--cream-dim);
+    margin-left: 3px;
+    animation: loader-dotfade 1.2s ease-in-out infinite;
+  }
+  #app-loading .loader-caption .dots span:nth-child(2) { animation-delay: 0.15s; }
+  #app-loading .loader-caption .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  @keyframes loader-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes loader-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 28px rgba(255,196,0,0.4), 0 14px 30px -8px rgba(0,0,0,0.6); }
+    50% { transform: scale(1.12); box-shadow: 0 0 44px rgba(255,196,0,0.65), 0 14px 30px -8px rgba(0,0,0,0.6); }
+  }
+  @keyframes loader-sweep {
+    0% { left: -60%; }
+    55%, 100% { left: 140%; }
+  }
+  @keyframes loader-dotfade {
+    0%, 100% { opacity: 0.25; }
+    50% { opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #app-loading .loader-orb,
+    #app-loading .loader-orb-inner,
+    #app-loading .loader-sweep,
+    #app-loading .loader-caption .dots span { animation: none !important; }
+  }

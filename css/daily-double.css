@@ -1,0 +1,79 @@
+/* Daily Double popup styling (self-contained, own dd- prefix).
+   Split from index.html — see palabra-file-split-plan.md. */
+
+  /* --- Daily Double popup: self-contained, own dd- prefix throughout so
+     nothing here can bleed into or be affected by unrelated rules. Uses
+     position:fixed rather than relying on .screen for a positioning
+     context, same approach as .menu-overlay above. No tap-outside-to-
+     dismiss on purpose — Play or Skip are the only two ways out, so a
+     day can never get silently marked handled by an accidental tap. --- */
+  .dd-modal-backdrop {
+    position: fixed; inset: 0; z-index: 55;
+    background: rgba(8,5,16,0.72);
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 22px;
+  }
+  .dd-card {
+    width: 100%; max-width: 380px;
+    background: linear-gradient(160deg, rgba(38,24,58,0.96), rgba(20,13,32,0.98));
+    border: 1px solid rgba(255,193,99,0.4);
+    border-radius: 26px;
+    padding: 28px 22px 22px;
+    text-align: center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 40px rgba(255,193,99,0.12);
+    animation: ddPopIn 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  }
+  @keyframes ddPopIn {
+    0%   { transform: scale(0.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .dd-ring-outer {
+    width: 84px; height: 84px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; margin: 0 auto 16px;
+  }
+  .dd-ring-outer::before {
+    content: ''; position: absolute; inset: -14px; border-radius: 50%;
+    background: radial-gradient(circle, var(--ochre) 0%, transparent 70%);
+    opacity: 0.45; filter: blur(2px);
+    animation: ddGlowPulse 2s ease-in-out infinite;
+  }
+  @keyframes ddGlowPulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.96); }
+    50%      { opacity: 0.7; transform: scale(1.06); }
+  }
+  .dd-ring-disc {
+    width: 100%; height: 100%; border-radius: 50%;
+    background: conic-gradient(#FFC163, #FF9F4D);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; z-index: 1;
+    box-shadow: 0 0 0 5px rgba(255,255,255,0.04), 0 10px 30px rgba(0,0,0,0.35), 0 0 26px rgba(255,193,99,0.5);
+  }
+  .dd-ring-inner {
+    width: calc(100% - 10px); height: calc(100% - 10px); border-radius: 50%;
+    background: #1B1030; display: flex; align-items: center; justify-content: center;
+  }
+  .dd-ring-num { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 26px; color: var(--cream); }
+  .dd-eyebrow {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ochre); margin-bottom: 6px;
+  }
+  .dd-headline {
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 24px; margin: 0 0 10px; color: var(--cream);
+  }
+  .dd-subline { font-size: 14px; color: var(--cream-dim); line-height: 1.55; margin: 0 0 22px; }
+  .dd-play-btn {
+    width: 100%; padding: 14px 0; border-radius: 16px; border: none;
+    font-weight: 700; font-size: 16px; background: var(--ochre); color: #241608;
+    margin-bottom: 10px; cursor: pointer;
+  }
+  .dd-skip-btn {
+    width: 100%; padding: 12px 0; border-radius: 16px; border: 1px solid var(--outline);
+    font-weight: 600; font-size: 14px; background: rgba(255,255,255,0.06); color: var(--cream);
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dd-card, .dd-ring-outer::before { animation: none !important; opacity: 1 !important; }
+  }
+

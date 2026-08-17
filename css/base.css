@@ -1,0 +1,87 @@
+/* Tokens, reset, .screen shell, and per-mode background gradients (bg-*).
+   Split from index.html — see palabra-file-split-plan.md. */
+
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #100A1E;
+    --bg-card: rgba(255,255,255,0.07);
+    --bg-card-alt: rgba(255,255,255,0.12);
+    --ochre: #FFC163;
+    --terracotta: #FF4D6D;
+    --cream: #F7F3ED;
+    --cream-dim: #B8AFC9;
+    --green: #2DD4BF;
+    --red: #FF4D6D;
+    --outline: rgba(255,255,255,0.16);
+    --label: #C9A8FF;
+    --memory: #E879F9;
+    --conjugate: #34D399;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  .screen {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 22px 20px;
+  }
+  .upload-screen { justify-content: center; }
+
+  /* Ambient per-mode gradient glow — the color itself signals which mode you're in */
+  .bg-quiz {
+    background:
+      radial-gradient(circle at 25% 15%, rgba(255,107,74,0.42), transparent 45%),
+      radial-gradient(circle at 85% 75%, rgba(139,92,246,0.32), transparent 50%),
+      linear-gradient(160deg, #1B1030 0%, #150C26 60%, #100A1E 100%);
+  }
+  .bg-timeattack {
+    background:
+      radial-gradient(circle at 20% 20%, rgba(45,212,191,0.4), transparent 45%),
+      radial-gradient(circle at 85% 80%, rgba(56,120,255,0.3), transparent 50%),
+      linear-gradient(160deg, #0D1B30 0%, #0B1626 60%, #0A121E 100%);
+  }
+  .bg-achievements {
+    background:
+      radial-gradient(circle at 25% 20%, rgba(255,193,99,0.4), transparent 45%),
+      radial-gradient(circle at 85% 75%, rgba(255,107,74,0.25), transparent 50%),
+      linear-gradient(160deg, #241631 0%, #1A1026 60%, #120B1C 100%);
+  }
+  .bg-memory {
+    background:
+      radial-gradient(circle at 22% 18%, rgba(217,70,239,0.38), transparent 45%),
+      radial-gradient(circle at 85% 78%, rgba(99,102,241,0.3), transparent 50%),
+      linear-gradient(160deg, #240F35 0%, #180B28 60%, #100A1E 100%);
+  }
+  .bg-conjugate {
+    background:
+      radial-gradient(circle at 22% 18%, rgba(52,211,153,0.36), transparent 45%),
+      radial-gradient(circle at 85% 78%, rgba(217,119,6,0.26), transparent 50%),
+      linear-gradient(160deg, #0E2A22 0%, #0B1F1A 60%, #0A1512 100%);
+  }
+  /* My Progress is reflective, not active gameplay, so it gets a calmer
+     violet-cream glow rather than a vibrant mode color. */
+  .bg-progress {
+    background:
+      radial-gradient(circle at 20% 15%, rgba(201,168,255,0.32), transparent 45%),
+      radial-gradient(circle at 85% 75%, rgba(247,243,237,0.14), transparent 50%),
+      linear-gradient(160deg, #1A1530 0%, #140F26 60%, #100A1E 100%);
+  }
+  .bg-login {
+    background:
+      radial-gradient(circle at 50% 12%, rgba(198,11,30,0.38), transparent 45%),
+      radial-gradient(circle at 80% 82%, rgba(139,92,246,0.28), transparent 50%),
+      linear-gradient(160deg, #1B1030 0%, #150C26 60%, #100A1E 100%);
+  }
+

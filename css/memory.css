@@ -1,0 +1,52 @@
+/* Memory Match board and tile styling.
+   Split from index.html — see palabra-file-split-plan.md. */
+
+  /* Memory Match board */
+  .memory-stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 13.5px;
+    color: var(--cream-dim);
+    margin-bottom: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .memory-stats-row span { color: var(--memory); font-weight: 700; }
+  .memory-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .memory-tile {
+    aspect-ratio: 1;
+    border-radius: 14px;
+    border: 1px solid var(--outline);
+    background: var(--bg-card-alt);
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.15;
+    font-weight: 600;
+    padding: 4px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    overflow: hidden;
+    word-break: break-word;
+    cursor: pointer;
+  }
+  .memory-tile.face-down { font-size: 18px; color: var(--cream-dim); }
+  .memory-tile.matched { background: rgba(45,212,191,0.2); border-color: var(--green); color: #B8FFF3; opacity: 0.8; cursor: default; }
+  .memory-tile.mismatch { animation: shake 0.4s ease; border-color: var(--red); }
+  .memory-tile.tile-flip { animation: cardFlip 0.7s ease; }
+  /* The tile whose partner is still flipping: holds neutral, then reacts in sync once the flip finishes */
+  .memory-tile.tile-reacting.mismatch { animation: shake 0.4s ease 0.7s, colorMismatch 0.3s ease 0.7s both; }
+  .memory-tile.tile-reacting.matched { animation: pop 0.4s ease 0.7s, colorMatched 0.3s ease 0.7s both; }
+  /* The tile that is itself flipping: turns, then reacts at the same synced moment as its partner */
+  .memory-tile.tile-flip.tile-reacting.mismatch { animation: cardFlip 0.7s ease, shake 0.4s ease 0.7s, colorMismatch 0.3s ease 0.7s both; }
+  .memory-tile.tile-flip.tile-reacting.matched { animation: cardFlip 0.7s ease, pop 0.4s ease 0.7s, colorMatched 0.3s ease 0.7s both; }
+

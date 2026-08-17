@@ -1,0 +1,101 @@
+// The single global state object (~90 fields). Depends on progress-xp.js
+// (calls loadProgress() at construction time).
+
+
+  const state = {
+    screen: 'login', // login | start | quiz | result
+    user: null,
+    username: '',
+    editingUsername: false,
+    needsCloudSync: false,
+    lastSyncedMs: 0,
+    progressDirty: false,
+    authMode: 'signin', // signin | signup
+    authError: '',
+    authInfo: '',
+    authBusy: false,
+    loading: true,
+    fetchFailed: false,
+    showUpload: false,
+    showMenu: false,
+    pairs: [],
+    mainPool: [],
+    error: '',
+    hasHeader: true,
+    fileName: '',
+    rawRows: null,
+    questions: [],
+    index: 0,
+    input: '',
+    checked: false,
+    wasCorrect: false,
+    results: [],
+    newBestThisRound: false,
+    progress: loadProgress(),
+    effectiveAnswerMode: 'type',
+    currentOptions: null,
+    selectedOption: null,
+    autoAdvanceTimer: null,
+    celebrateTimer: null,
+    celebrateVariant: null, // 'perfect' | 'finished'
+    celebrateNext: null,    // which screen to land on once the celebration ends
+    lastKnownLevel: null,   // session baseline for detecting a level-up; null until first checkLevelUp() call
+    pendingLevelUp: null,   // set the instant a level-up is detected, shown once results are left
+    levelUpNextFn: null,    // what to do once the Level Up screen is dismissed
+    levelUpTimer: null,
+    queuedAchievementToasts: [],
+    lastFlippedIndex: -1,
+    lastWasTypo: false,
+    resultMode: 'round', // 'round' | 'timeattack'
+    isDailyDoubleRound: false,
+    isStreamRound: false,
+    lastRoundWasStream: false, // survives into the results screen (isStreamRound itself is cleared before then) so "Play again" knows to restart a stream, not a normal round
+    lastRoundWasSentences: false, // same idea as lastRoundWasStream, but for Sentences mode - Quiz and Sentences share the same results screen, so this is how "Play again" / "Change settings" know which one to restart
+    streamCheckpointCount: 0, // answers since the last checkpoint (0-9), resets each checkpoint
+    streamSessionStreak: 0,      // correct-in-a-row within THIS stream session only (Locked In) — same session-only pattern as taStreak
+    streamSessionCheckpoints: 0, // checkpoints reached in one continuous sitting, without stopping (Marathon Session)
+    streamFormatsCorrect: {},    // which formats (mc/audio/type/cloze) have had a correct answer this session (Triple Threat only requires mc/audio/type)
+    taActive: false,
+    taScore: 0,
+    taStreak: 0,
+    taTimeLeft: 60,
+    taEndTime: 0,
+    taTimerHandle: null,
+    taFlashTimer: null,
+    taCurrentQuestion: null,
+    taCurrentOptions: null,
+    taInput: '',
+    taIsNewBest: false,
+    memoryTiles: [],
+    memoryFlipped: [],
+    memoryMatchedCount: 0,
+    memoryTotalPairs: 0,
+    memoryMoves: 0,
+    memoryBusy: false,
+    memoryStartTime: 0,
+    memorySeconds: 0,
+    memoryTimerHandle: null,
+    memoryFlipTimer: null,
+    memoryIsNewBest: false,
+    memoryJustFlipped: [],
+    memoryReacting: [],
+    activeCategory: null,
+    categoryPairs: [],
+    categoryLoading: false,
+    categoryError: '',
+    verbPairs: [],
+    verbsLoaded: false,
+    verbsLoading: false,
+    verbsError: '',
+    conjugateQuestions: [],
+    conjugateIndex: 0,
+    conjugateResults: [],
+    conjugateInput: '',
+    conjugateChecked: false,
+    conjugateWasCorrect: false,
+    conjugateCurrentOptions: null,
+    conjugateSelectedOption: null,
+    conjugateNewBestStreak: false,
+    conjugateLastWasTypo: false,
+    achievementGroup: null,
+  };
