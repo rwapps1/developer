@@ -6,7 +6,12 @@ const WORDS_FILE = './words.xlsx';
 // (Category column), so there's nothing to list here anymore - one file to
 // cache instead of 17.
 
-const CACHE_NAME = 'palabra-cache-v4';
+// Bumped for the index.html file-reorganisation deploy (monolithic
+// index.html split into css/*.js and js/*.js) - gives the activate handler
+// below a clean break from the old palabra-cache-v4 entries (old index.html
+// plus its inline CSS/JS) instead of leaving old and new assets mixed
+// together under the same cache name.
+const CACHE_NAME = 'palabra-cache-v5';
 const ASSETS_TO_CACHE = [
   './',
   APP_HTML,
@@ -15,6 +20,40 @@ const ASSETS_TO_CACHE = [
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
+  './css/base.css',
+  './css/components.css',
+  './css/auth.css',
+  './css/quiz.css',
+  './css/memory.css',
+  './css/progress.css',
+  './css/celebration.css',
+  './css/daily-double.css',
+  './js/firebase-auth.js',
+  './js/config.js',
+  './js/utils.js',
+  './js/audio.js',
+  './js/progress-xp.js',
+  './js/state.js',
+  './js/auth.js',
+  './js/cloud-sync.js',
+  './js/data-loading.js',
+  './js/word-selection.js',
+  './js/conjugation-engine.js',
+  './js/achievements.js',
+  './js/game-quiz.js',
+  './js/game-timeattack.js',
+  './js/game-memory.js',
+  './js/game-conjugate.js',
+  './js/views/render-auth.js',
+  './js/views/render-hub.js',
+  './js/views/render-quiz.js',
+  './js/views/render-timeattack.js',
+  './js/views/render-memory.js',
+  './js/views/render-conjugate.js',
+  './js/views/render-progress.js',
+  './js/views/render-dispatch.js',
+  './js/navigation.js',
+  './js/app-boot.js',
 ];
 
 self.addEventListener('install', (event) => {

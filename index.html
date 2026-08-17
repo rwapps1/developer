@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Z9EFLSPZFZ"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-Z9EFLSPZFZ');
+  </script>
+
+  <!-- The rest of your existing head content goes below -->
+  
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+<title>Palabra — Spanish Vocab Quiz</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#100A1E" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Palabra" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<!-- Firebase: Authentication + Firestore. This runs as an ES module, so it
+     can't share scope directly with the classic app script further down —
+     instead it publishes what's needed onto window.PalabraAuth and fires a
+     'palabra-firebase-ready' event once that's done, since module scripts
+     load asynchronously and may not be ready before the classic script's
+     boot code runs. -->
+<script type="module" src="js/firebase-auth.js"></script>
+
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/components.css" />
+<link rel="stylesheet" href="css/auth.css" />
+<link rel="stylesheet" href="css/quiz.css" />
+<link rel="stylesheet" href="css/memory.css" />
+<link rel="stylesheet" href="css/progress.css" />
+<link rel="stylesheet" href="css/celebration.css" />
+<link rel="stylesheet" href="css/daily-double.css" />
+
+</head>
+<body>
+<div id="app-loading">
+  <div class="loader-orb">
+    <div class="loader-orb-inner"></div>
+    <div class="loader-sweep"></div>
+  </div>
+  <div class="loader-caption">Cargando<span class="dots"><span></span><span></span><span></span></span></div>
+</div>
+<div id="app"></div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/progress-xp.js"></script>
+<script src="js/state.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/cloud-sync.js"></script>
+<script src="js/data-loading.js"></script>
+<script src="js/word-selection.js"></script>
+<script src="js/conjugation-engine.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/game-quiz.js"></script>
+<script src="js/game-timeattack.js"></script>
+<script src="js/game-memory.js"></script>
+<script src="js/game-conjugate.js"></script>
+<script src="js/views/render-auth.js"></script>
+<script src="js/views/render-hub.js"></script>
+<script src="js/views/render-quiz.js"></script>
+<script src="js/views/render-timeattack.js"></script>
+<script src="js/views/render-memory.js"></script>
+<script src="js/views/render-conjugate.js"></script>
+<script src="js/views/render-progress.js"></script>
+<script src="js/views/render-dispatch.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/app-boot.js"></script>
+</body>
+</html>
