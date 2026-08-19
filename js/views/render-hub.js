@@ -183,8 +183,8 @@
               <button class="today-foot-row" id="dd-row" type="button" ${ddReady ? '' : 'disabled'}>
                 <div class="foot-icon gift ${ddReady ? '' : 'claimed'}">${ddReady ? '🎁' : '✓'}</div>
                 <div class="foot-text">
-                  <div class="foot-title">${ddReady ? 'Daily Double ready' : 'Daily Double claimed'}</div>
-                  <div class="foot-sub">${ddReady ? 'Double XP on your lowest-box words' : 'Come back tomorrow for another'}</div>
+                  <div class="foot-title">${ddReady ? 'Daily Double' : 'Daily Double'}</div>
+                  <div class="foot-sub">${ddReady ? 'Double XP on your lowest-box words' : 'Come back tomorrow for another bonus'}</div>
                 </div>
                 <div class="foot-cta ${ddReady ? '' : 'claimed'}">${ddReady ? 'Claim' : 'Claimed'}</div>
               </button>
