@@ -29,6 +29,11 @@
     merged.achievements = Object.assign({}, parsed.achievements || {});
     merged.dailyDoubleLastHandled = typeof parsed.dailyDoubleLastHandled === 'string' ? parsed.dailyDoubleLastHandled : null;
     merged.dailyDoubleBonusXP = typeof parsed.dailyDoubleBonusXP === 'number' ? parsed.dailyDoubleBonusXP : 0;
+    merged.dailyXPGoal = typeof parsed.dailyXPGoal === 'number' && parsed.dailyXPGoal > 0 ? parsed.dailyXPGoal : DEFAULT_DAILY_XP_GOAL;
+    merged.dailyStreak = Object.assign(merged.dailyStreak, parsed.dailyStreak || {});
+    merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
+    merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
+    merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
     return merged;
   }
 

@@ -1,0 +1,201 @@
+/* Home hub redesign: Today panel, hero pulse states, mode-picker tile,
+   merged Level+Progress card, quiet achievements row.
+   Depends on tokens from base.css (--cream, --ochre, --outline, etc.) —
+   adds a few hub-only tokens below rather than touching base.css. */
+
+  :root {
+    --cream-faint: #8f84a3;
+    --flame-a: #ff8a4c;
+    --flame-b: #ff4d6d;
+    --hub-panel-line: rgba(247,243,237,0.12);
+  }
+
+  /* ---- Hero pulse: pulses the card's own border/shadow, not a background
+     blob. Strong before today's first Stream session, calm once played. ---- */
+  .hub-hero-pulse {
+    position: relative;
+    border-color: rgba(255,193,99,0.3);
+    animation: hubHeroPulseStrong 2.4s ease-in-out infinite;
+  }
+  .hub-hero-pulse.calm {
+    animation: hubHeroPulseCalm 4s ease-in-out infinite;
+  }
+  @keyframes hubHeroPulseStrong {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255,178,80,0);
+      border-color: rgba(255,193,99,0.28);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 0 3px rgba(255,178,80,0.35), 0 0 30px 4px rgba(255,150,60,0.4);
+      border-color: rgba(255,193,99,0.9);
+      transform: scale(1.012);
+    }
+  }
+  @keyframes hubHeroPulseCalm {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(255,178,80,0);
+      border-color: rgba(255,193,99,0.22);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 0 0 2px rgba(255,178,80,0.16), 0 0 16px 2px rgba(255,150,60,0.18);
+      border-color: rgba(255,193,99,0.5);
+      transform: scale(1.005);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hub-hero-pulse, .hub-hero-pulse.calm { animation: none; }
+  }
+
+  .hub-start-btn { display: flex; align-items: center; justify-content: center; gap: 9px; }
+  .hub-play-chip {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(36,19,51,0.16);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+  }
+
+  /* ---- Today panel: borderless, hairline dividers between sub-sections ---- */
+  .today-panel { margin-top: 22px; padding: 4px 6px 0; }
+
+  .today-hero-row { display: flex; align-items: center; gap: 16px; padding: 0 8px 18px; }
+  .today-flame-wrap { flex-shrink: 0; }
+  .today-flame-num {
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 30px;
+    background: linear-gradient(135deg, var(--flame-a), var(--flame-b));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .today-flame-emoji { font-size: 26px; filter: drop-shadow(0 0 10px rgba(255,120,60,0.55)); }
+  .today-streak-label {
+    font-size: 11.5px; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--cream-faint); font-weight: 600; margin-top: 2px;
+  }
+  .today-week-pips { flex: 1; display: flex; justify-content: space-between; padding-left: 4px; }
+  .pip-col { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+  .pip-day { font-size: 10.5px; color: var(--cream-faint); font-weight: 600; }
+  .pip {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.16);
+    display: block;
+  }
+  .pip.filled {
+    background: linear-gradient(135deg, var(--flame-a), var(--flame-b));
+    border-color: transparent;
+    box-shadow: 0 0 8px rgba(255,110,70,0.55);
+  }
+  .pip.today { border: 1.5px solid var(--ochre); }
+
+  .today-divider { height: 1px; background: var(--hub-panel-line); margin: 0 8px; }
+
+  .today-stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    row-gap: 18px; column-gap: 12px;
+    padding: 18px 8px 4px;
+    max-width: 300px; margin: 0 auto;
+  }
+  .today-stat { text-align: center; }
+  .today-stat-icon { font-size: 15px; }
+  .today-stat-num {
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 18px;
+    color: var(--cream); display: block; margin-top: 6px;
+  }
+  .today-stat-lbl { font-size: 11px; color: var(--cream-faint); margin-top: 2px; display: block; }
+  .today-xp-bar {
+    height: 5px; border-radius: 3px; background: rgba(255,255,255,0.1);
+    margin: 9px auto 0; overflow: hidden; max-width: 110px;
+  }
+  .today-xp-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #FFC163, #FFDB96);
+  }
+
+  .today-footer { margin-top: 4px; }
+  .today-foot-row {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 8px; border-top: 1px solid var(--hub-panel-line);
+    background: none; border-left: none; border-right: none; border-bottom: none;
+    color: var(--cream); text-align: left; font-family: 'Inter', sans-serif;
+    cursor: pointer;
+  }
+  .today-foot-row:disabled { cursor: default; }
+  .today-foot-row .foot-icon {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    background: rgba(255,193,99,0.18);
+  }
+  .today-foot-row .foot-icon.claimed { background: rgba(45,212,191,0.18); color: var(--green); }
+  .today-foot-row .foot-icon.trophy { background: rgba(255,193,99,0.18); }
+  .today-foot-row .foot-text { flex: 1; }
+  .today-foot-row .foot-title { font-size: 13.5px; font-weight: 700; color: var(--cream); }
+  .today-foot-row .foot-sub { font-size: 12px; color: var(--cream-dim); margin-top: 2px; }
+  .today-foot-row .foot-cta {
+    flex-shrink: 0; font-size: 12.5px; font-weight: 700;
+    padding: 7px 14px; border-radius: 999px;
+    background: var(--ochre); color: #241608;
+  }
+  .today-foot-row .foot-cta.claimed {
+    background: none; border: 1px solid var(--green); color: var(--green);
+  }
+
+  /* ---- Mode-picker tile ---- */
+  .mode-tile {
+    display: block; width: 100%; text-align: left;
+    margin-top: 18px; font-family: 'Inter', sans-serif; color: var(--cream);
+    background: linear-gradient(135deg, rgba(155,110,220,0.10), rgba(255,255,255,0.03));
+    border: 1px solid rgba(180,140,230,0.28);
+    border-radius: 20px; padding: 16px 16px 14px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .mode-tile:active { transform: scale(0.985); }
+  .mode-tile-top { display: flex; align-items: center; margin-bottom: 14px; }
+  .mode-tile-top h3 { margin: 0; font-family: 'Sora', sans-serif; font-size: 16px; color: var(--cream); font-weight: 700; }
+  .mode-tile-chip { margin-left: auto; background: rgba(190,150,240,0.85); color: #241333; }
+  .mode-preview { display: flex; gap: 8px; }
+  .mode-chip {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.05); border-radius: 14px; padding: 10px 4px;
+  }
+  .mode-chip .mico { font-size: 17px; }
+  .mode-chip .mlabel { font-size: 9.5px; color: var(--cream-faint); font-weight: 600; text-align: center; line-height: 1.2; }
+
+  /* ---- Merged Level + Progress card ---- */
+  .progress-card {
+    display: flex; align-items: center; gap: 16px; width: 100%; text-align: left;
+    margin-top: 12px; font-family: 'Inter', sans-serif; color: var(--cream);
+    background: linear-gradient(135deg, rgba(255,193,99,0.10), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,193,99,0.32);
+    border-radius: 20px; padding: 16px 16px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .progress-card:active { transform: scale(0.985); }
+  .ring-wrap { position: relative; width: 76px; height: 76px; flex-shrink: 0; }
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: rgba(255,255,255,0.09); stroke-width: 7; }
+  .ring-fill { fill: none; stroke: url(#hubRingGrad); stroke-width: 7; stroke-linecap: round; }
+  .ring-level {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 21px; color: var(--cream);
+  }
+  .progress-info { flex: 1; min-width: 0; }
+  .progress-info h3 { margin: 0 0 4px; font-family: 'Sora', sans-serif; font-size: 16px; color: var(--cream); font-weight: 700; }
+  .progress-info .xp-line { font-size: 12.5px; color: var(--cream-dim); margin-bottom: 6px; }
+  .progress-info .xp-line b { color: var(--ochre); font-weight: 700; }
+  .progress-info .sub-link { font-size: 12px; color: var(--cream-faint); }
+
+  /* ---- Quiet achievements row ---- */
+  .ach-row {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    margin-top: 6px; padding: 12px 8px; border-top: 1px solid var(--hub-panel-line);
+    background: none; border-left: none; border-right: none; border-bottom-width: 0;
+    font-family: 'Inter', sans-serif; color: var(--cream); cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .ach-row:active { opacity: 0.7; }
+  .ach-row .aico { font-size: 15px; }
+  .ach-row .atext { flex: 1; font-size: 13px; color: var(--cream-dim); }
+  .ach-row .atext b { color: var(--cream); font-weight: 700; }

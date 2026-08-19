@@ -116,6 +116,48 @@
   const XP_PER_BEST_STREAK_POINT = 2;
   const XP_PER_ACHIEVEMENT = 20;
 
+  // Default daily XP goal shown on the hub's Today panel — user-adjustable
+  // from the settings menu (see progress.dailyXPGoal), this is just the
+  // starting value for a fresh account.
+  const DEFAULT_DAILY_XP_GOAL = 60;
+
+  // --- Achievement "closest to unlocking" teaser (hub Today panel) -------
+  // Only achievements with a real persistent counter get an entry here —
+  // pure one-shot or session-only achievements (Perfect Round, Flawless,
+  // Triple/Quadruple Threat, in-session streak achievements, etc.) have no
+  // meaningful partial state and are deliberately left out, per the
+  // hub-redesign spec. value(progress) returns the current count toward
+  // target; getAchievementTeaser() in achievements.js turns this into a
+  // fraction and picks whichever locked achievement is closest.
+  const ACHIEVEMENT_PROGRESS = {
+    correct50:   { target: 50,  value: p => p.lifetime.totalCorrect },
+    correct200:  { target: 200, value: p => p.lifetime.totalCorrect },
+    streak10:    { target: 10,  value: p => p.streak.best },
+    streak25:    { target: 25,  value: p => p.streak.best },
+    masteredWords25:  { target: 25,  value: p => p.masteredWordsCount || 0 },
+    masteredWords100: { target: 100, value: p => p.masteredWordsCount || 0 },
+    timeAttack10:  { target: 10,  value: p => p.timeAttackBest || 0 },
+    timeAttack25:  { target: 25,  value: p => p.timeAttackBest || 0 },
+    timeAttack50:  { target: 50,  value: p => p.timeAttackBest || 0 },
+    timeAttack100: { target: 100, value: p => p.timeAttackBest || 0 },
+    timeAttackCorrect100: { target: 100, value: p => p.taLifetime.totalCorrect },
+    timeAttackCorrect500: { target: 500, value: p => p.taLifetime.totalCorrect },
+    memoryBoards10: { target: 10, value: p => p.memoryLifetime.boardsCleared },
+    memoryBoards50: { target: 50, value: p => p.memoryLifetime.boardsCleared },
+    memoryAllSizes: { target: 3,  value: p => ['6', '8', '12'].filter(s => p.memoryClearedSizes && p.memoryClearedSizes[s]).length },
+    conjugateStreak5:  { target: 5,   value: p => p.conjugateStreak.best },
+    conjugateStreak15: { target: 15,  value: p => p.conjugateStreak.best },
+    conjugateStreak30: { target: 30,  value: p => p.conjugateStreak.best },
+    conjugateStreak50: { target: 50,  value: p => p.conjugateStreak.best },
+    conjugateCorrect50:  { target: 50,  value: p => p.conjugateLifetime.totalCorrect },
+    conjugateCorrect200: { target: 200, value: p => p.conjugateLifetime.totalCorrect },
+    streamCheckpoints10: { target: 10, value: p => p.streamLifetime.checkpointsCompleted },
+    streamCheckpoints50: { target: 50, value: p => p.streamLifetime.checkpointsCompleted },
+    streamAudio25:       { target: 25, value: p => p.streamLifetime.audioCorrect },
+    streamCorrect100:    { target: 100, value: p => p.streamLifetime.totalCorrect },
+    streamCorrect500:    { target: 500, value: p => p.streamLifetime.totalCorrect },
+  };
+
   // file id (matches "categories-{id}.xlsx" in the repo) -> display name + icon
   // kept in alphabetical order by name, which is also the order the tiles render in
   const CATEGORIES = [

@@ -1,6 +1,10 @@
 // Renders the home hub and the game-mode picker screen.
 
 
+  const WEEK_PIP_DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const HUB_RING_RADIUS = 34;
+  const HUB_RING_CIRCUMFERENCE = 2 * Math.PI * HUB_RING_RADIUS;
+
   function renderStart() {
     if (state.needsCloudSync && state.user) {
       state.needsCloudSync = false;
@@ -10,7 +14,10 @@
     const settings = state.progress.settings;
     const streak = state.progress.streak;
     const xpLevel = getXPLevel(state.progress);
-    const showDailyDouble = state.progress.dailyDoubleLastHandled !== todayDateString();
+    // "Played today" reuses the same lastActiveDate the daily streak is
+    // built on — no separate flag needed, see progress-xp.js markDailyActivity().
+    const playedToday = state.progress.lastActiveDate === todayDateString();
+    const ddReady = state.progress.dailyDoubleLastHandled !== todayDateString();
 
     let statusHtml = '';
     if (state.loading) {
@@ -40,6 +47,10 @@
         <div class="menu-dropdown">
           <label class="menu-item" style="cursor:pointer;">Speak words aloud <input type="checkbox" id="autospeak-toggle" ${settings.autoSpeak ? 'checked' : ''} /></label>
           <label class="menu-item" style="cursor:pointer;">Sound effects <input type="checkbox" id="soundfx-toggle" ${settings.soundEffects ? 'checked' : ''} /></label>
+          <div class="menu-item" style="cursor:default;">
+            <span>Daily XP goal</span>
+            <input type="number" id="xpgoal-input" min="1" step="1" value="${state.progress.dailyXPGoal}" style="width:64px; margin-bottom:0; padding:6px 8px; font-size:14px; text-align:right;" />
+          </div>
           <button id="menu-export-btn" class="menu-item">⬇ Download progress</button>
           <button id="menu-import-btn" class="menu-item">⬆ Upload progress</button>
           ${state.user
@@ -71,8 +82,35 @@
     const achIds = Object.keys(ACHIEVEMENTS);
     const achUnlockedCount = achIds.filter(id => state.progress.achievements[id] && state.progress.achievements[id].unlocked).length;
     const achTotalCount = achIds.length;
-    const noWords = state.pairs.length === 0;
     const totalAnswered = state.progress.lifetime.totalAnswered + state.progress.conjugateLifetime.totalAnswered;
+
+    // ---- Today panel data ----
+    const todayXP = getTodayXP();
+    const todayWords = getTodayWordsCount();
+    const xpGoal = state.progress.dailyXPGoal || DEFAULT_DAILY_XP_GOAL;
+    const xpGoalPct = Math.max(0, Math.min(100, Math.round((todayXP / xpGoal) * 100)));
+    const dailyStreak = state.progress.dailyStreak;
+    const weekPips = getWeekPips();
+    const weekPipsHtml = weekPips.map((p, i) => `
+      <div class="pip-col">
+        <span class="pip-day">${WEEK_PIP_DAY_LETTERS[i]}</span>
+        <span class="pip ${p.filled ? 'filled' : ''} ${p.isToday ? 'today' : ''}"></span>
+      </div>
+    `).join('');
+
+    const teaser = getAchievementTeaser();
+    const teaserHtml = teaser ? `
+        <button class="today-foot-row" id="ach-teaser-row" type="button">
+          <div class="foot-icon trophy">🏆</div>
+          <div class="foot-text">
+            <div class="foot-title">${teaser.remaining} away from ${esc(teaser.def.name)}</div>
+            <div class="foot-sub">${achUnlockedCount} / ${achTotalCount} achievements unlocked</div>
+          </div>
+        </button>
+      ` : '';
+
+    // ---- Merged Level/Progress card ring ----
+    const ringOffset = HUB_RING_CIRCUMFERENCE * (1 - xpLevel.pct / 100);
 
     app.innerHTML = `
       <div class="screen upload-screen bg-quiz">
@@ -84,71 +122,109 @@
             </div>
             <button id="menu-btn" class="menu-btn">⋯</button>
           </div>
-          <div class="stat-strip">
-            <span class="streak-text">🔥 ${streak.current} &nbsp;·&nbsp; Best ${streak.best}${state.mainPool.length > 0 ? ` &nbsp;·&nbsp; ${state.mainPool.length} words` : ''}</span>
-            <span class="divider"></span>
-            <span class="level-mini">
-              <span class="level-mini-text">XP</span>
-              <span class="level-ring small" style="--pct:${xpLevel.pct}%;"><span class="level-ring-inner"><span class="level-ring-num">${xpLevel.level}</span></span></span>
-            </span>
-          </div>
           ${menuHtml}
           ${statusHtml}
           ${uploadHtml}
-          <div class="card stream-hero">
+          <div class="card stream-hero hub-hero-pulse ${playedToday ? 'calm' : ''}">
             <div class="format-row"><span class="fchip">🔤</span><span class="fchip">🔊</span><span class="fchip">✎</span></div>
             <h2>Your Learning Stream</h2>
             <p>Mixed questions — choose, listen, or type. Learn the words you need most, one after another.</p>
-            <button id="start-stream-btn" class="btn-primary" ${state.mainPool.length < 3 ? 'disabled' : ''}>Start Stream →</button>
+            <button id="start-stream-btn" class="btn-primary hub-start-btn" ${state.mainPool.length < 3 ? 'disabled' : ''}>
+              <span class="hub-play-chip">▶</span>${playedToday ? 'Continue Stream' : 'Start Stream'}
+            </button>
           </div>
-          <button class="game-tile modes-banner" data-tile="gamemodes">
-            <div class="tile-icon-wrap" style="background:rgba(255,255,255,0.08);">🎮</div>
-            <div class="banner-text">
-              <div class="banner-name">Choose a specific mode</div>
-              <div class="banner-meta">Quiz, Time Attack, Memory Match & more</div>
+
+          <div class="today-panel">
+            <div class="today-hero-row">
+              <div class="today-flame-wrap">
+                <div class="today-flame-num"><span class="today-flame-emoji">🔥</span>${dailyStreak.current}</div>
+                <div class="today-streak-label">Day streak</div>
+              </div>
+              <div class="today-week-pips">${weekPipsHtml}</div>
             </div>
-            <div class="banner-arrow">→</div>
-          </button>
-          <button class="game-tile achievements-banner" data-tile="achievements">
-            <div class="tile-icon-wrap" style="background:rgba(255,193,99,0.18);">🏆</div>
-            <div class="banner-text">
-              <div class="banner-name">Achievements</div>
-              <div class="banner-meta">${achUnlockedCount}/${achTotalCount} unlocked</div>
+
+            <div class="today-divider"></div>
+
+            <div class="today-stat-grid">
+              <div class="today-stat">
+                <span class="today-stat-icon">⚡</span>
+                <span class="today-stat-num">${todayXP} / ${xpGoal}</span>
+                <span class="today-stat-lbl">XP today</span>
+                <div class="today-xp-bar"><div class="today-xp-bar-fill" style="width:${xpGoalPct}%;"></div></div>
+              </div>
+              <div class="today-stat">
+                <span class="today-stat-icon">📝</span>
+                <span class="today-stat-num">${todayWords}</span>
+                <span class="today-stat-lbl">Words today</span>
+              </div>
+              <div class="today-stat">
+                <span class="today-stat-icon">🎯</span>
+                <span class="today-stat-num">${streak.current}</span>
+                <span class="today-stat-lbl">Current streak</span>
+              </div>
+              <div class="today-stat">
+                <span class="today-stat-icon">🏆</span>
+                <span class="today-stat-num">${streak.best}</span>
+                <span class="today-stat-lbl">Best streak</span>
+              </div>
             </div>
-            <div class="banner-arrow">→</div>
-          </button>
-          <button class="game-tile progress-banner" data-tile="myprogress">
-            <div class="tile-icon-wrap" style="background:rgba(201,168,255,0.18);">📊</div>
-            <div class="banner-text">
-              <div class="banner-name">My Progress</div>
-              <div class="banner-meta">${totalAnswered} answers logged</div>
+
+            <div class="today-footer">
+              <button class="today-foot-row" id="dd-row" type="button" ${ddReady ? '' : 'disabled'}>
+                <div class="foot-icon gift ${ddReady ? '' : 'claimed'}">${ddReady ? '🎁' : '✓'}</div>
+                <div class="foot-text">
+                  <div class="foot-title">${ddReady ? 'Daily Double ready' : 'Daily Double claimed'}</div>
+                  <div class="foot-sub">${ddReady ? 'Double XP on your lowest-box words' : 'Come back tomorrow for another'}</div>
+                </div>
+                <div class="foot-cta ${ddReady ? '' : 'claimed'}">${ddReady ? 'Claim' : 'Claimed'}</div>
+              </button>
+              ${teaserHtml}
             </div>
-            <div class="banner-arrow">→</div>
-          </button>
-          <button class="game-tile level-banner" data-tile="xpinfo">
-            <span class="level-ring" style="--pct:${xpLevel.pct}%;"><span class="level-ring-inner"><span class="level-ring-num">${xpLevel.level}</span></span></span>
-            <div class="banner-text">
-              <div class="banner-name">Level ${xpLevel.level}</div>
-              <div class="banner-meta"><span class="xp-track"><span class="xp-fill" style="width:${xpLevel.pct}%;"></span></span> ${xpLevel.xpIntoLevel} / ${xpLevel.xpForNextLevel} XP</div>
+          </div>
+
+          <button class="mode-tile" data-tile="gamemodes" type="button">
+            <div class="mode-tile-top">
+              <h3>Choose a specific mode</h3>
+              <div class="hub-play-chip mode-tile-chip">▶</div>
             </div>
-            <div class="banner-arrow">→</div>
+            <div class="mode-preview">
+              <div class="mode-chip"><span class="mico">🔤</span><span class="mlabel">Quiz</span></div>
+              <div class="mode-chip"><span class="mico">⏱️</span><span class="mlabel">Time<br>Attack</span></div>
+              <div class="mode-chip"><span class="mico">🧠</span><span class="mlabel">Memory<br>Match</span></div>
+              <div class="mode-chip"><span class="mico">🔄</span><span class="mlabel">Conjugate</span></div>
+              <div class="mode-chip"><span class="mico">🗂️</span><span class="mlabel">Categories</span></div>
+            </div>
           </button>
+
+          <button class="progress-card" data-tile="myprogress" type="button">
+            <div class="ring-wrap">
+              <svg width="76" height="76" viewBox="0 0 76 76">
+                <defs>
+                  <linearGradient id="hubRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#ffd27a"/>
+                    <stop offset="100%" stop-color="#ffb84d"/>
+                  </linearGradient>
+                </defs>
+                <circle class="ring-track" cx="38" cy="38" r="${HUB_RING_RADIUS}"/>
+                <circle class="ring-fill" cx="38" cy="38" r="${HUB_RING_RADIUS}"
+                  stroke-dasharray="${HUB_RING_CIRCUMFERENCE.toFixed(1)}" stroke-dashoffset="${ringOffset.toFixed(1)}"/>
+              </svg>
+              <div class="ring-level">${xpLevel.level}</div>
+            </div>
+            <div class="progress-info">
+              <h3>Level ${xpLevel.level}</h3>
+              <div class="xp-line"><b>${xpLevel.xpIntoLevel}</b> / ${xpLevel.xpForNextLevel} XP to next level</div>
+              <div class="sub-link">📊 ${totalAnswered} answers logged</div>
+            </div>
+          </button>
+
+          <button class="ach-row" data-tile="achievements" type="button">
+            <span class="aico">🏆</span>
+            <span class="atext"><b>${achUnlockedCount} / ${achTotalCount}</b> achievements unlocked</span>
+          </button>
+
           <input type="file" id="import-file" accept="application/json" style="display:none" />
         </div>
-        ${showDailyDouble ? `
-        <div class="dd-modal-backdrop" id="dd-modal-backdrop">
-          <div class="dd-card">
-            <div class="dd-ring-outer">
-              <div class="dd-ring-disc"><div class="dd-ring-inner"><span class="dd-ring-num">2X</span></div></div>
-            </div>
-            <div class="dd-eyebrow">Power up your learning</div>
-            <h2 class="dd-headline">Daily Double!</h2>
-            <p class="dd-subline">10 of your least memorised words — double XP if you play them now.</p>
-            <button id="dd-play-btn" class="dd-play-btn">Play now</button>
-            <button id="dd-skip-btn" class="dd-skip-btn">Skip for today</button>
-          </div>
-        </div>
-        ` : ''}
       </div>
     `;
 
@@ -160,10 +236,11 @@
     const startStreamBtn = document.getElementById('start-stream-btn');
     if (startStreamBtn) startStreamBtn.addEventListener('click', startStream);
 
-    if (showDailyDouble) {
-      document.getElementById('dd-play-btn').addEventListener('click', handleDailyDoublePlay);
-      document.getElementById('dd-skip-btn').addEventListener('click', handleDailyDoubleSkip);
-    }
+    const ddRow = document.getElementById('dd-row');
+    if (ddRow && ddReady) ddRow.addEventListener('click', handleDailyDoublePlay);
+
+    const teaserRow = document.getElementById('ach-teaser-row');
+    if (teaserRow) teaserRow.addEventListener('click', () => { state.screen = 'achievements'; render(); });
 
     document.getElementById('menu-btn').addEventListener('click', () => {
       state.showMenu = !state.showMenu;
@@ -179,6 +256,12 @@
       document.getElementById('soundfx-toggle').addEventListener('change', (e) => {
         state.progress.settings.soundEffects = e.target.checked;
         saveProgress();
+      });
+      document.getElementById('xpgoal-input').addEventListener('change', (e) => {
+        const val = parseInt(e.target.value, 10);
+        state.progress.dailyXPGoal = (Number.isFinite(val) && val > 0) ? val : DEFAULT_DAILY_XP_GOAL;
+        saveProgress();
+        render();
       });
       document.getElementById('menu-export-btn').addEventListener('click', () => {
         state.showMenu = false;
@@ -242,16 +325,14 @@
       if (fileUpload) fileUpload.addEventListener('change', (e) => handleFile(e.target.files[0]));
     }
 
-    document.querySelectorAll('.game-tile').forEach(tile => {
-      tile.addEventListener('click', () => {
-        const id = tile.dataset.tile;
-        if (tile.disabled) return;
-        if (id === 'gamemodes') { state.screen = 'game-modes'; render(); }
-        else if (id === 'achievements') { state.screen = 'achievements'; render(); }
-        else if (id === 'myprogress') { state.screen = 'my-progress'; render(); }
-        else if (id === 'xpinfo') { state.screen = 'xp-info'; render(); }
-      });
-    });
+    const modeTile = document.querySelector('.mode-tile');
+    if (modeTile) modeTile.addEventListener('click', () => { state.screen = 'game-modes'; render(); });
+
+    const progressCard = document.querySelector('.progress-card');
+    if (progressCard) progressCard.addEventListener('click', () => { state.screen = 'my-progress'; render(); });
+
+    const achRow = document.querySelector('.ach-row');
+    if (achRow) achRow.addEventListener('click', () => { state.screen = 'achievements'; render(); });
   }
 
   // The 6 game-mode tiles, previously always visible on Home, now live

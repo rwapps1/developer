@@ -20,8 +20,13 @@
       masteredWordsCount: 0, // words that have EVER reached box 6 — permanent, never drops if a word later regresses (see ws.masteredEver)
       settings: { direction: 'mixed', roundLength: '10', autoSpeak: true, answerMode: 'choice', soundEffects: true, memoryGridSize: '8' },
       achievements: {},
-      dailyDoubleLastHandled: null, // 'YYYY-MM-DD' of last Play/Skip decision, local device date
+      dailyDoubleLastHandled: null, // 'YYYY-MM-DD' of last Play decision, local device date
       dailyDoubleBonusXP: 0,        // cumulative bonus from completed Daily Double rounds
+      dailyXPGoal: DEFAULT_DAILY_XP_GOAL, // user-adjustable, default 60
+      dailyStreak: { current: 0, best: 0 }, // daily login/practice streak (distinct from in-session answer streak)
+      lastActiveDate: null,         // 'YYYY-MM-DD' of the last day with qualifying activity — gates the streak increment
+      recentActiveDates: [],        // trimmed list of qualifying-activity dates (last ~14), drives the week pip strip
+      todaySnapshot: { date: null, xpAtStart: 0, answeredAtStart: 0 }, // baseline computeXP()/answered-count at the start of "today", used to derive today's XP/words live
     };
   }
 
@@ -139,6 +144,11 @@
       merged.achievements = Object.assign({}, parsed.achievements || {});
       merged.dailyDoubleLastHandled = typeof parsed.dailyDoubleLastHandled === 'string' ? parsed.dailyDoubleLastHandled : null;
       merged.dailyDoubleBonusXP = typeof parsed.dailyDoubleBonusXP === 'number' ? parsed.dailyDoubleBonusXP : 0;
+      merged.dailyXPGoal = typeof parsed.dailyXPGoal === 'number' && parsed.dailyXPGoal > 0 ? parsed.dailyXPGoal : DEFAULT_DAILY_XP_GOAL;
+      merged.dailyStreak = Object.assign(merged.dailyStreak, parsed.dailyStreak || {});
+      merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
+      merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
+      merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
       return merged;
     } catch (e) {
       return defaultProgress();
@@ -212,6 +222,11 @@
         merged.achievements = Object.assign({}, parsed.achievements || {});
         merged.dailyDoubleLastHandled = typeof parsed.dailyDoubleLastHandled === 'string' ? parsed.dailyDoubleLastHandled : null;
         merged.dailyDoubleBonusXP = typeof parsed.dailyDoubleBonusXP === 'number' ? parsed.dailyDoubleBonusXP : 0;
+        merged.dailyXPGoal = typeof parsed.dailyXPGoal === 'number' && parsed.dailyXPGoal > 0 ? parsed.dailyXPGoal : DEFAULT_DAILY_XP_GOAL;
+        merged.dailyStreak = Object.assign(merged.dailyStreak, parsed.dailyStreak || {});
+        merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
+        merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
+        merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
         state.progress = merged;
         saveProgress();
         render();
@@ -220,6 +235,91 @@
       }
     };
     reader.readAsText(file);
+  }
+
+  // ---- Today panel / daily streak helpers ----
+
+  // True if `today` is exactly the calendar day after `dateStr` (both
+  // 'YYYY-MM-DD', local device dates). Used to decide whether a new day's
+  // activity continues the streak or resets it.
+  function isNextCalendarDay(dateStr, today) {
+    if (!dateStr) return false;
+    const prev = new Date(dateStr + 'T00:00:00');
+    const cur = new Date(today + 'T00:00:00');
+    const diffDays = Math.round((cur - prev) / 86400000);
+    return diffDays === 1;
+  }
+
+  // Called from the one qualifying-activity spot in each of the four game
+  // engines (recordAnswer, recordConjugateAnswer, endMemoryMatch) — NOT
+  // from every saveProgress(), so toggling a setting doesn't count as
+  // "practiced today". Safe to call more than once per day; only the
+  // first call each day does anything.
+  function markDailyActivity() {
+    const today = todayDateString();
+    if (state.progress.lastActiveDate === today) return;
+    const wasConsecutive = isNextCalendarDay(state.progress.lastActiveDate, today);
+    state.progress.dailyStreak.current = wasConsecutive ? (state.progress.dailyStreak.current || 0) + 1 : 1;
+    if (state.progress.dailyStreak.current > (state.progress.dailyStreak.best || 0)) {
+      state.progress.dailyStreak.best = state.progress.dailyStreak.current;
+    }
+    state.progress.lastActiveDate = today;
+    if (!state.progress.recentActiveDates) state.progress.recentActiveDates = [];
+    if (!state.progress.recentActiveDates.includes(today)) {
+      state.progress.recentActiveDates.push(today);
+      if (state.progress.recentActiveDates.length > 14) {
+        state.progress.recentActiveDates = state.progress.recentActiveDates.slice(-14);
+      }
+    }
+  }
+
+  // Rolls today's XP/words baseline forward whenever the local calendar
+  // day has changed since it was last set — including just from opening
+  // the app the next day, not only from new activity. computeXP() is
+  // fully derived from lifetime counters (see above), so this snapshot-
+  // diff approach needs no per-award hooks and stays correct even as new
+  // XP sources get added to computeXP() in future.
+  function ensureTodaySnapshot() {
+    const today = todayDateString();
+    if (state.progress.todaySnapshot && state.progress.todaySnapshot.date === today) return;
+    state.progress.todaySnapshot = {
+      date: today,
+      xpAtStart: computeXP(state.progress),
+      answeredAtStart: (state.progress.lifetime.totalAnswered || 0) + (state.progress.conjugateLifetime.totalAnswered || 0),
+    };
+    saveProgress();
+  }
+
+  function getTodayXP() {
+    ensureTodaySnapshot();
+    return Math.max(0, computeXP(state.progress) - state.progress.todaySnapshot.xpAtStart);
+  }
+
+  function getTodayWordsCount() {
+    ensureTodaySnapshot();
+    const total = (state.progress.lifetime.totalAnswered || 0) + (state.progress.conjugateLifetime.totalAnswered || 0);
+    return Math.max(0, total - state.progress.todaySnapshot.answeredAtStart);
+  }
+
+  // Monday-start 7-day pip strip for the current calendar week (local
+  // time). Each entry: { date, filled, isToday }.
+  function getWeekPips() {
+    const now = new Date();
+    const dow = now.getDay(); // 0=Sun..6=Sat
+    const mondayOffset = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+    const todayStr = todayDateString();
+    const activeDates = state.progress.recentActiveDates || [];
+    const pips = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${day}`;
+      pips.push({ date: dateStr, filled: activeDates.includes(dateStr), isToday: dateStr === todayStr });
+    }
+    return pips;
   }
 
   // ---- My Progress helpers ----

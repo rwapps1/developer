@@ -147,6 +147,7 @@
     if (isNewBest) {
       state.progress.memoryBest[gridSize] = state.memoryMoves;
     }
+    markDailyActivity();
     state.progress.memoryLifetime.boardsCleared += 1;
     if (state.progress.memoryLifetime.bySize[gridSize] === undefined) {
       state.progress.memoryLifetime.bySize[gridSize] = 0;

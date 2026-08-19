@@ -211,6 +211,7 @@
     }
     state.progress.lifetime.totalAnswered += 1;
     if (correct) state.progress.lifetime.totalCorrect += 1;
+    markDailyActivity();
     saveProgress();
 
     if (correct) playCorrectSound(); else playWrongSound();

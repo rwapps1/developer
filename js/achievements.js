@@ -62,6 +62,31 @@
     });
   }
 
+  // Picks the locked achievement with the highest completion fraction, for
+  // the hub Today panel's "N away from X" teaser. Only achievements listed
+  // in ACHIEVEMENT_PROGRESS (config.js) are eligible — see that table's
+  // comment for why one-shot/session-only achievements are excluded.
+  // Returns null if every eligible achievement is already unlocked (or
+  // none exist yet, e.g. mid-migration).
+  function getAchievementTeaser() {
+    const progress = state.progress;
+    const unlocked = progress.achievements || {};
+    let best = null;
+    Object.keys(ACHIEVEMENT_PROGRESS).forEach(id => {
+      if (unlocked[id] && unlocked[id].unlocked) return;
+      const def = ACHIEVEMENTS[id];
+      const spec = ACHIEVEMENT_PROGRESS[id];
+      if (!def || !spec) return;
+      const value = spec.value(progress) || 0;
+      const fraction = Math.max(0, Math.min(1, value / spec.target));
+      const remaining = Math.max(0, Math.ceil(spec.target - value));
+      if (!best || fraction > best.fraction) {
+        best = { id, def, fraction, remaining };
+      }
+    });
+    return best;
+  }
+
   function evaluateRoundAchievements() {
     const score = state.results.filter(r => r.correct).length;
     const total = state.results.length;

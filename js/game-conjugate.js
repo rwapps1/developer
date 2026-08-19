@@ -153,6 +153,7 @@
     }
     state.progress.conjugateLifetime.totalAnswered += 1;
     if (correct) state.progress.conjugateLifetime.totalCorrect += 1;
+    markDailyActivity();
     saveProgress();
 
     if (correct) playCorrectSound(); else playWrongSound();

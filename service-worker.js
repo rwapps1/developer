@@ -11,7 +11,7 @@ const WORDS_FILE = './words.xlsx';
 // below a clean break from the old palabra-cache-v4 entries (old index.html
 // plus its inline CSS/JS) instead of leaving old and new assets mixed
 // together under the same cache name.
-const CACHE_NAME = 'palabra-cache-v5';
+const CACHE_NAME = 'palabra-cache-v6';
 const ASSETS_TO_CACHE = [
   './',
   APP_HTML,
@@ -28,6 +28,7 @@ const ASSETS_TO_CACHE = [
   './css/progress.css',
   './css/celebration.css',
   './css/daily-double.css',
+  './css/hub.css',
   './js/firebase-auth.js',
   './js/config.js',
   './js/utils.js',
