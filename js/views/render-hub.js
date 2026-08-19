@@ -178,7 +178,7 @@
               <div class="today-stat ${todayXP >= xpGoal ? 'goal-met' : ''}">
                 <span class="today-stat-icon">${todayXP >= xpGoal ? '✅' : '⚡'}</span>
                 <span class="today-stat-num">${todayXP} / ${xpGoal}</span>
-                <span class="today-stat-lbl">${todayXP >= xpGoal ? 'Goal met!' : 'XP today'}</span>
+                <span class="today-stat-lbl">${todayXP >= xpGoal ? 'XP Goal Met!' : 'XP today'}</span>
                 <div class="today-xp-bar"><div class="today-xp-bar-fill ${todayXP >= xpGoal ? 'goal-met' : ''}" style="width:${xpGoalPct}%;"></div></div>
               </div>
               <div class="today-stat">
