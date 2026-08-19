@@ -27,6 +27,22 @@
     }, 2000);
   }
 
+  // One-time-per-day toast for hitting the Daily XP goal — see
+  // checkDailyGoalCrossed() in progress-xp.js. Deliberately quieter than
+  // an achievement unlock (no sound, no confetti): reaching a routine
+  // daily goal is a nice nudge, not a milestone worth the bigger fanfare.
+  function showDailyGoalToast() {
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = `<div class="toast-icon">⚡</div><div><div class="toast-title">Daily goal reached</div><div class="toast-name">You hit your XP goal for today</div></div>`;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.classList.add('show'); });
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 400);
+    }, 2600);
+  }
+
   // While true, unlockAchievement() queues its toast/sound instead of
   // firing immediately — used around round-end achievement checks so an
   // achievement toast doesn't pop up on top of the full-screen celebration.

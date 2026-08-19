@@ -34,6 +34,7 @@
     merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
     merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
     merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
+    merged.dailyGoalCelebratedDate = typeof parsed.dailyGoalCelebratedDate === 'string' ? parsed.dailyGoalCelebratedDate : null;
     return merged;
   }
 

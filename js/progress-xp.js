@@ -27,6 +27,7 @@
       lastActiveDate: null,         // 'YYYY-MM-DD' of the last day with qualifying activity — gates the streak increment
       recentActiveDates: [],        // trimmed list of qualifying-activity dates (last ~14), drives the week pip strip
       todaySnapshot: { date: null, xpAtStart: 0, answeredAtStart: 0 }, // baseline computeXP()/answered-count at the start of "today", used to derive today's XP/words live
+      dailyGoalCelebratedDate: null, // 'YYYY-MM-DD' of the last day the "goal reached" toast was shown, so it only fires once per day
     };
   }
 
@@ -160,6 +161,7 @@
       merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
       merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
       merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
+      merged.dailyGoalCelebratedDate = typeof parsed.dailyGoalCelebratedDate === 'string' ? parsed.dailyGoalCelebratedDate : null;
       return merged;
     } catch (e) {
       return defaultProgress();
@@ -195,6 +197,30 @@
     state.progressDirty = true;
     pushCloudProgressDebounced();
     checkLevelUp();
+    checkDailyGoalCrossed();
+  }
+
+  // Fires the one-time "daily XP goal reached" toast the moment today's XP
+  // crosses progress.dailyXPGoal, mirroring checkLevelUp()'s pattern —
+  // every XP-affecting write already funnels through saveProgress(), so
+  // this one hook covers every source (answers, achievements, best-streak
+  // bonuses) without touching each award site individually. Deliberately
+  // does NOT call ensureTodaySnapshot()/getTodayXP() (progress-xp.js
+  // helpers with their own saveProgress() side effect) to avoid re-entrant
+  // saves — if today's snapshot genuinely isn't set yet this no-ops and
+  // catches up on the next saveProgress() call, which in practice is only
+  // ever moments away.
+  function checkDailyGoalCrossed() {
+    const today = todayDateString();
+    if (state.progress.dailyGoalCelebratedDate === today) return;
+    const snap = state.progress.todaySnapshot;
+    if (!snap || snap.date !== today) return;
+    const todayXP = Math.max(0, computeXP(state.progress) - snap.xpAtStart);
+    const goal = state.progress.dailyXPGoal || DEFAULT_DAILY_XP_GOAL;
+    if (todayXP >= goal) {
+      state.progress.dailyGoalCelebratedDate = today;
+      showDailyGoalToast();
+    }
   }
 
   function exportProgress() {
@@ -238,6 +264,7 @@
         merged.lastActiveDate = typeof parsed.lastActiveDate === 'string' ? parsed.lastActiveDate : null;
         merged.recentActiveDates = Array.isArray(parsed.recentActiveDates) ? parsed.recentActiveDates.slice(-14) : [];
         merged.todaySnapshot = Object.assign({}, merged.todaySnapshot, parsed.todaySnapshot || {});
+        merged.dailyGoalCelebratedDate = typeof parsed.dailyGoalCelebratedDate === 'string' ? parsed.dailyGoalCelebratedDate : null;
         state.progress = merged;
         saveProgress();
         render();

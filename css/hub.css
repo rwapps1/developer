@@ -103,6 +103,8 @@
     color: var(--cream); display: block; margin-top: 6px;
   }
   .today-stat-lbl { font-size: 11px; color: var(--cream-faint); margin-top: 2px; display: block; }
+  .today-stat.goal-met .today-stat-num { color: var(--green); }
+  .today-stat.goal-met .today-stat-lbl { color: var(--green); }
   .today-xp-bar {
     height: 5px; border-radius: 3px; background: rgba(255,255,255,0.1);
     margin: 9px auto 0; overflow: hidden; max-width: 110px;
@@ -110,6 +112,9 @@
   .today-xp-bar-fill {
     height: 100%; border-radius: 3px;
     background: linear-gradient(90deg, #FFC163, #FFDB96);
+  }
+  .today-xp-bar-fill.goal-met {
+    background: linear-gradient(90deg, #2DD4BF, #34D399);
   }
 
   .today-footer { margin-top: 4px; }

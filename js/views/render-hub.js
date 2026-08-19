@@ -47,9 +47,19 @@
         <div class="menu-dropdown">
           <label class="menu-item" style="cursor:pointer;">Speak words aloud <input type="checkbox" id="autospeak-toggle" ${settings.autoSpeak ? 'checked' : ''} /></label>
           <label class="menu-item" style="cursor:pointer;">Sound effects <input type="checkbox" id="soundfx-toggle" ${settings.soundEffects ? 'checked' : ''} /></label>
-          <div class="menu-item" style="cursor:default;">
+          <div class="menu-item" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; cursor:default;">
             <span>Daily XP goal</span>
-            <input type="number" id="xpgoal-input" min="1" step="1" value="${state.progress.dailyXPGoal}" style="width:64px; margin-bottom:0; padding:6px 8px; font-size:14px; text-align:right;" />
+            ${state.editingXPGoal ? `
+              <div style="display:flex; gap:6px; width:100%;">
+                <input type="number" id="xpgoal-edit-input" min="1" step="1" value="${state.progress.dailyXPGoal}" style="margin-bottom:0; flex:1; padding:8px 10px; font-size:14px;" />
+                <button id="xpgoal-save-btn" class="btn-secondary" style="padding:8px 14px; width:auto;">Save</button>
+              </div>
+            ` : `
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                <span style="font-weight:600;">${state.progress.dailyXPGoal}</span>
+                <button id="xpgoal-edit-btn" class="link-btn" type="button">Edit</button>
+              </div>
+            `}
           </div>
           <button id="menu-export-btn" class="menu-item">⬇ Download progress</button>
           <button id="menu-import-btn" class="menu-item">⬆ Upload progress</button>
@@ -146,11 +156,11 @@
             <div class="today-divider"></div>
 
             <div class="today-stat-grid">
-              <div class="today-stat">
-                <span class="today-stat-icon">⚡</span>
+              <div class="today-stat ${todayXP >= xpGoal ? 'goal-met' : ''}">
+                <span class="today-stat-icon">${todayXP >= xpGoal ? '✅' : '⚡'}</span>
                 <span class="today-stat-num">${todayXP} / ${xpGoal}</span>
-                <span class="today-stat-lbl">XP today</span>
-                <div class="today-xp-bar"><div class="today-xp-bar-fill" style="width:${xpGoalPct}%;"></div></div>
+                <span class="today-stat-lbl">${todayXP >= xpGoal ? 'Goal met!' : 'XP today'}</span>
+                <div class="today-xp-bar"><div class="today-xp-bar-fill ${todayXP >= xpGoal ? 'goal-met' : ''}" style="width:${xpGoalPct}%;"></div></div>
               </div>
               <div class="today-stat">
                 <span class="today-stat-icon">📝</span>
@@ -263,10 +273,15 @@
         state.progress.settings.soundEffects = e.target.checked;
         saveProgress();
       });
-      document.getElementById('xpgoal-input').addEventListener('change', (e) => {
-        const val = parseInt(e.target.value, 10);
+      document.getElementById('xpgoal-save-btn') && document.getElementById('xpgoal-save-btn').addEventListener('click', () => {
+        const val = parseInt(document.getElementById('xpgoal-edit-input').value, 10);
         state.progress.dailyXPGoal = (Number.isFinite(val) && val > 0) ? val : DEFAULT_DAILY_XP_GOAL;
+        state.editingXPGoal = false;
         saveProgress();
+        render();
+      });
+      document.getElementById('xpgoal-edit-btn') && document.getElementById('xpgoal-edit-btn').addEventListener('click', () => {
+        state.editingXPGoal = true;
         render();
       });
       document.getElementById('menu-export-btn').addEventListener('click', () => {
@@ -285,6 +300,7 @@
             state.user = null;
             state.username = '';
             state.editingUsername = false;
+            state.editingXPGoal = false;
             // Leave the device genuinely clean — nothing from this account
             // should linger to leak into whatever signs in or registers
             // here next.
