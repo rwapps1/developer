@@ -95,6 +95,7 @@
   function renderMyProgress() {
     const app = document.getElementById('app');
     const p = state.progress;
+    const xpLevel = getXPLevel(p);
 
     const vocabAccuracy = p.lifetime.totalAnswered > 0
       ? Math.round((p.lifetime.totalCorrect / p.lifetime.totalAnswered) * 100) : 0;
@@ -187,6 +188,53 @@
             <div class="progress-section-sub">Lowest-box verb + pronoun pairs right now</div>
             <div class="progress-review-list">${reviewCombosHtml}</div>
           </div>
+
+          <div class="card recap-row" style="margin-top:14px;">
+            <span class="level-ring" style="--pct:${xpLevel.pct}%;"><span class="level-ring-inner"><span class="level-ring-num">${xpLevel.level}</span></span></span>
+            <div class="recap-text">
+              <div class="recap-level">Level ${xpLevel.level}</div>
+              <div class="recap-sub">${xpLevel.xpIntoLevel} / ${xpLevel.xpForNextLevel} XP · ${xpLevel.xpForNextLevel - xpLevel.xpIntoLevel} XP to Level ${xpLevel.level + 1}</div>
+              <span class="xp-track"><span class="xp-fill" style="width:${xpLevel.pct}%;"></span></span>
+            </div>
+          </div>
+
+          <div class="section-label">Keep playing to earn XP</div>
+          <div class="card">
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(255,193,99,0.18);">🌊</div>
+              <div class="rule-text"><div class="rule-title">Stream</div><div class="rule-sub">Answer correctly — mixed, continuous practice, the best way to rack up XP</div></div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(255,107,74,0.18);">📝</div>
+              <div class="rule-text"><div class="rule-title">Quiz &amp; Categories</div><div class="rule-sub">Answer correctly</div></div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(52,211,153,0.18);">🔤</div>
+              <div class="rule-text"><div class="rule-title">Conjugate</div><div class="rule-sub">Answer correctly</div></div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(45,212,191,0.18);">⚡</div>
+              <div class="rule-text"><div class="rule-title">Time Attack</div><div class="rule-sub">Answer correctly against the clock</div></div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(217,70,239,0.18);">🧩</div>
+              <div class="rule-text"><div class="rule-title">Memory Match</div><div class="rule-sub">Clear a board — bigger boards count for more</div></div>
+            </div>
+          </div>
+
+          <div class="section-label">Milestone bonuses</div>
+          <div class="card">
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(255,77,109,0.18);">🔥</div>
+              <div class="rule-text"><div class="rule-title">Beat your best streak</div><div class="rule-sub">In Quiz, Stream, or Conjugate</div></div>
+            </div>
+            <div class="rule-row">
+              <div class="rule-icon" style="background:rgba(255,193,99,0.18);">🏆</div>
+              <div class="rule-text"><div class="rule-title">Unlock an achievement</div><div class="rule-sub">Any of the ${Object.keys(ACHIEVEMENTS).length} badges, any game</div></div>
+            </div>
+          </div>
+
+          <div class="footnote">Your level only ever goes up — it's a record of how much you've played, not a score you can lose.</div>
         </div>
       </div>
     `;
