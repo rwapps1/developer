@@ -187,10 +187,31 @@
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 21px; color: var(--cream);
   }
   .progress-info { flex: 1; min-width: 0; }
+  .progress-info-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .progress-info h3 { margin: 0 0 4px; font-family: 'Sora', sans-serif; font-size: 16px; color: var(--cream); font-weight: 700; }
-  .progress-info .xp-line { font-size: 12.5px; color: var(--cream-dim); margin-bottom: 6px; }
+  .progress-chevron { flex-shrink: 0; color: var(--cream-dim); opacity: 0.6; transition: transform 0.15s ease; }
+  .progress-card:active .progress-chevron { transform: translateX(2px); }
+  .progress-info .xp-line { font-size: 12.5px; color: var(--cream-dim); margin-bottom: 8px; }
   .progress-info .xp-line b { color: var(--ochre); font-weight: 700; }
-  .progress-info .sub-link { font-size: 12px; color: var(--cream-faint); }
+
+  /* Box-distribution teaser: mastery shape at a glance, one segment per SRS
+     box (index 0-5, shown as Box 1-6). Deliberately no due/overdue count —
+     word selection is a soft weighted pick (see utils.js getWeight()), not
+     a hard due-list, so a count here would promise more than the app does
+     and would spike (and demoralise) after any break from practice. */
+  .box-strip-label {
+    font-size: 10.5px; letter-spacing: 0.03em; text-transform: uppercase;
+    color: var(--cream-faint); margin-bottom: 5px;
+  }
+  .box-strip { display: flex; gap: 3px; height: 8px; }
+  .box-seg { border-radius: 3px; background: rgba(255,255,255,0.09); min-width: 3px; }
+  .box-seg-1 { background: #4a3b63; }
+  .box-seg-2 { background: #5c4877; }
+  .box-seg-3 { background: #7a5788; }
+  .box-seg-4 { background: #a8768a; }
+  .box-seg-5 { background: #d59a6e; }
+  .box-seg-6 { background: var(--ochre); }
+  .box-strip-foot { font-size: 11px; color: var(--cream-faint); margin-top: 6px; }
 
   /* ---- Quiet achievements row ---- */
   .ach-row {
