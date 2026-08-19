@@ -14,6 +14,26 @@
     const settings = state.progress.settings;
     const streak = state.progress.streak;
     const xpLevel = getXPLevel(state.progress);
+    // Combined word+verb box distribution for the hub teaser strip — same
+    // boxCounts() the My Progress screen uses per-stats-object, summed here
+    // since the hub only needs one overall shape, not the word/verb split.
+    const hubWordBoxCounts = boxCounts(state.progress.wordStats);
+    const hubVerbBoxCounts = boxCounts(state.progress.verbStats);
+    const hubBoxCounts = hubWordBoxCounts.map((n, i) => n + hubVerbBoxCounts[i]);
+    const hubBoxTotal = hubBoxCounts.reduce((a, b) => a + b, 0);
+    const hubBoxStripHtml = hubBoxCounts.map((n, i) => {
+      const pct = hubBoxTotal > 0 ? (n / hubBoxTotal) * 100 : 0;
+      return `<div class="box-seg box-seg-${i + 1}" style="flex-grow:${(n || 0.0001)}" title="Box ${i + 1}: ${n} word${n === 1 ? '' : 's'} (${Math.round(pct)}%)"></div>`;
+    }).join('');
+    // Footer copy: which box has the most words right now. No due/overdue
+    // language here deliberately — this strip shows mastery shape, not a
+    // to-do count (selection is a soft weighted pick, not a due-list, so a
+    // "due" number here would promise something the app doesn't guarantee).
+    let hubBoxFootText = 'Start practicing to build your box breakdown';
+    if (hubBoxTotal > 0) {
+      const maxIdx = hubBoxCounts.indexOf(Math.max(...hubBoxCounts));
+      hubBoxFootText = `Most words sitting in Box ${maxIdx + 1}`;
+    }
     // "Played today" reuses the same lastActiveDate the daily streak is
     // built on — no separate flag needed, see progress-xp.js markDailyActivity().
     const playedToday = state.progress.lastActiveDate === todayDateString();
@@ -92,7 +112,6 @@
     const achIds = Object.keys(ACHIEVEMENTS);
     const achUnlockedCount = achIds.filter(id => state.progress.achievements[id] && state.progress.achievements[id].unlocked).length;
     const achTotalCount = achIds.length;
-    const totalAnswered = state.progress.lifetime.totalAnswered + state.progress.conjugateLifetime.totalAnswered;
 
     // ---- Today panel data ----
     const todayXP = getTodayXP();
@@ -206,7 +225,7 @@
             </div>
           </button>
 
-          <button class="progress-card" data-tile="myprogress" type="button">
+          <button class="progress-card" data-tile="myprogress" type="button" aria-label="View full progress breakdown">
             <div class="ring-wrap">
               <svg width="76" height="76" viewBox="0 0 76 76">
                 <defs>
@@ -222,9 +241,18 @@
               <div class="ring-level">${xpLevel.level}</div>
             </div>
             <div class="progress-info">
-              <h3>Level ${xpLevel.level}</h3>
+              <div class="progress-info-top">
+                <h3>Level ${xpLevel.level}</h3>
+                <svg class="progress-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
               <div class="xp-line"><b>${xpLevel.xpIntoLevel}</b> / ${xpLevel.xpForNextLevel} XP to next level</div>
-              <div class="sub-link">📊 ${totalAnswered} answers logged</div>
+              <div class="box-strip-wrap">
+                <div class="box-strip-label">Box 1 → 6</div>
+                <div class="box-strip">${hubBoxStripHtml}</div>
+                <div class="box-strip-foot">${esc(hubBoxFootText)}</div>
+              </div>
             </div>
           </button>
 
