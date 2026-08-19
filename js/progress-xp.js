@@ -39,6 +39,17 @@
     return allIds.filter(id => id.startsWith(group.prefix));
   }
 
+  // Reverse of achievementIdsForGroup() — which group does a given
+  // achievement id belong to. Used to jump straight to an achievement's
+  // detail screen (e.g. from the hub's "closest to unlocking" teaser)
+  // instead of dropping the person on the top-level Achievements list.
+  function groupIdForAchievement(id) {
+    const prefixed = ACHIEVEMENT_GROUPS.find(g => g.prefix && id.startsWith(g.prefix));
+    if (prefixed) return prefixed.id;
+    const fallback = ACHIEVEMENT_GROUPS.find(g => g.prefix === null);
+    return fallback ? fallback.id : ACHIEVEMENT_GROUPS[0].id;
+  }
+
   function computeXP(progress) {
     let xp = 0;
     xp += progress.lifetime.totalCorrect * XP_PER_QUIZ_CORRECT;

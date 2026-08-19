@@ -240,7 +240,13 @@
     if (ddRow && ddReady) ddRow.addEventListener('click', handleDailyDoublePlay);
 
     const teaserRow = document.getElementById('ach-teaser-row');
-    if (teaserRow) teaserRow.addEventListener('click', () => { state.screen = 'achievements'; render(); });
+    if (teaserRow) {
+      teaserRow.addEventListener('click', () => {
+        state.achievementGroup = groupIdForAchievement(teaser.id);
+        state.screen = 'achievements-detail';
+        render();
+      });
+    }
 
     document.getElementById('menu-btn').addEventListener('click', () => {
       state.showMenu = !state.showMenu;
