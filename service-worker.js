@@ -6,12 +6,13 @@ const WORDS_FILE = './words.xlsx';
 // (Category column), so there's nothing to list here anymore - one file to
 // cache instead of 17.
 
-// Bumped for the index.html file-reorganisation deploy (monolithic
-// index.html split into css/*.js and js/*.js) - gives the activate handler
-// below a clean break from the old palabra-cache-v4 entries (old index.html
-// plus its inline CSS/JS) instead of leaving old and new assets mixed
-// together under the same cache name.
-const CACHE_NAME = 'palabra-cache-v6';
+// Bumped for the /new landing-page demo deploy — config.js, auth.js, and
+// app-boot.js all changed content (demo handoff support). /new itself is
+// deliberately NOT added to ASSETS_TO_CACHE below: it's a one-time, no-
+// account ad-funnel page for first-time visitors, not part of the
+// installed offline app shell, so it doesn't need precaching or offline
+// support the way the main app does.
+const CACHE_NAME = 'palabra-cache-v7';
 const ASSETS_TO_CACHE = [
   './',
   APP_HTML,
