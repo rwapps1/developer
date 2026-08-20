@@ -138,6 +138,19 @@
     isDemoMode: true,
   };
 
+  // The hub's "Today" panel (XP today / Words today) is a snapshot diff —
+  // computeXP() now minus computeXP() at the moment todaySnapshot was last
+  // baselined (progress-xp.js's ensureTodaySnapshot()/getTodayXP()). In
+  // the real app that baseline always gets set on the hub's very first
+  // render of the day, which always happens BEFORE Stream starts (Stream
+  // is launched from the hub). This demo runs the opposite order —
+  // questions happen before the hub is ever shown — so without this call,
+  // the baseline would only get set the first time the hub renders, i.e.
+  // AFTER the round, at the exact XP total just earned, making "today"
+  // net out to zero. Calling it here, before any answer is recorded,
+  // baselines it at the true starting point (0) instead.
+  ensureTodaySnapshot();
+
   // ---- Stubs for the two cross-file calls this page's included files
   // still make, whose real implementations live in files deliberately not
   // loaded here (auth.js). Both are no-ops-with-a-guard in the real app
