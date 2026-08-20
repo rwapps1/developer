@@ -55,6 +55,12 @@
     streamSessionStreak: 0,      // correct-in-a-row within THIS stream session only (Locked In) — same session-only pattern as taStreak
     streamSessionCheckpoints: 0, // checkpoints reached in one continuous sitting, without stopping (Marathon Session)
     streamFormatsCorrect: {},    // which formats (mc/audio/type/cloze) have had a correct answer this session (Triple Threat only requires mc/audio/type)
+    tfClaimEn: '',        // the English text shown as the True/False claim for the current question
+    tfIsTrue: false,      // whether that claim is actually correct
+    tfSessionStreak: 0,   // consecutive correct True/False answers within this stream session — resets on a wrong True/False answer only (Snap Judgment)
+    scrambleBank: [],     // [{text, origIndex}] — current scramble question's words, in shuffled display order
+    scramblePlaced: [],   // array of origIndex values, in the order the player has tapped them so far
+    scrambleSessionStreak: 0, // consecutive correct Scramble answers within this stream session — resets on a wrong Scramble answer only (Word Order)
     taActive: false,
     taScore: 0,
     taStreak: 0,

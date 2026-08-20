@@ -35,7 +35,7 @@
   // Simplified Leitner-style spaced repetition: box index -> days until next due
   const SRS_INTERVALS_DAYS = [0, 1, 3, 7, 16, 35];
   const STREAM_CHECKPOINT_SIZE = 20; // how many stream questions between "keep going / stop" checkpoints
-  const STREAM_FORMATS = ['mc', 'audio', 'type', 'cloze'];
+  const STREAM_FORMATS = ['mc', 'audio', 'type', 'cloze', 'truefalse', 'scramble'];
 
   const ACHIEVEMENTS = {
     firstRound:  { name: 'First Steps',    desc: 'Complete your first round',              icon: '👟' },
@@ -86,6 +86,8 @@
     streamCorrect100:       { name: 'Stream Regular',    desc: '100 lifetime correct answers in Stream',                         icon: '🗺️' },
     streamCorrect500:       { name: 'Stream Veteran',    desc: '500 lifetime correct answers in Stream',                         icon: '⛰️' },
     streamMarathon:         { name: 'Marathon Session',  desc: '5 checkpoints in one sitting, no stopping',                      icon: '🏕️' },
+    streamTrueFalseStreak10:{ name: 'Snap Judgment',     desc: '10 correct True/False answers in a row in Stream',              icon: '🎭' },
+    streamScrambleStreak10: { name: 'Word Order',        desc: '10 correct Sentence Scramble answers in a row in Stream',       icon: '🧵' },
   };
 
   // Groups the flat ACHIEVEMENTS registry by which game each badge belongs to,

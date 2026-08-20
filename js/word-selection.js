@@ -34,6 +34,11 @@
       // most won't yet. Falling back to typed translation keeps the
       // rotation's cadence intact instead of skipping this word entirely.
       if (format === 'cloze' && !findClozeBlank(p)) format = 'type';
+      // Scramble reuses the same sentence bank as cloze (and the same
+      // findClozeBlank() validity check, though only to confirm a usable
+      // sentence exists - the actual scramble logic is unrelated to
+      // blank-finding). Same type fallback for words without one.
+      if (format === 'scramble' && !findClozeBlank(p)) format = 'type';
       batch.push({
         ...p,
         direction: Math.random() < 0.5 ? 'es-en' : 'en-es',

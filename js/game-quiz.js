@@ -96,6 +96,57 @@
     state.selectedOption = null;
     state.lastWasTypo = false;
     const current = state.questions[state.index];
+
+    // True/False: always pairs the fixed Spanish word with either its own
+    // correct translation or a distractor's (50/50), regardless of the
+    // (irrelevant here) current.direction that buildStreamBatch still
+    // assigns to every question. getDistractors() itself picks its
+    // candidate field based on current.direction, so it's called with a
+    // forced 'es-en' override here rather than trusting the random one -
+    // otherwise a question randomly assigned 'en-es' would hand back
+    // Spanish distractors for what's meant to be an English claim.
+    if (current && current.format === 'truefalse') {
+      const correctText = splitAnswers(current.en)[0];
+      const isTrue = Math.random() < 0.5;
+      if (isTrue) {
+        state.tfClaimEn = correctText;
+        state.tfIsTrue = true;
+      } else {
+        const distractors = getDistractors({ ...current, direction: 'es-en' }, correctText, 1);
+        if (distractors.length >= 1) {
+          state.tfClaimEn = distractors[0];
+          state.tfIsTrue = false;
+        } else {
+          // Word list too small to find a distinct distractor - show a
+          // true claim instead of a broken/empty one.
+          state.tfClaimEn = correctText;
+          state.tfIsTrue = true;
+        }
+      }
+      state.currentOptions = null;
+      return;
+    }
+
+    // Sentence Scramble: tokenize on whitespace only, so punctuation stays
+    // attached to whichever word it follows - this sidesteps the
+    // punctuation/case-insensitivity question entirely, since correctness
+    // is checked structurally (placed order vs. original token order), not
+    // by comparing text. Defensive fallback to 'type' mirrors cloze's own
+    // pattern, though buildStreamBatch already filters on findClozeBlank()
+    // so this shouldn't normally trigger.
+    if (current && current.format === 'scramble') {
+      const tokens = (current.sentence || '').split(/\s+/).filter(Boolean);
+      if (tokens.length < 2) {
+        current.format = 'type';
+        state.currentOptions = null;
+        return;
+      }
+      state.scrambleBank = shuffle(tokens.map((text, origIndex) => ({ text, origIndex })));
+      state.scramblePlaced = [];
+      state.currentOptions = null;
+      return;
+    }
+
     // Stream decides choice-vs-type per question (current.format); every
     // other mode still uses the single round-level answerMode setting.
     const useChoiceMode = state.isStreamRound
@@ -164,12 +215,23 @@
   }
 
   function recordAnswer(current, correct, userAnswerDisplay) {
-    const targetField = targetFieldFor(current);
+    const isTrueFalse = current.format === 'truefalse';
+    const isScramble = current.format === 'scramble';
+    // targetFieldFor() isn't meaningful for True/False (there's no single
+    // right "translation" - the whole question IS a translation, being
+    // judged true or false), so it's skipped for that format rather than
+    // called and then ignored.
+    const targetField = isTrueFalse ? null : targetFieldFor(current);
     state.wasCorrect = correct;
     state.checked = true;
     state.results.push({
-      prompt: current.format === 'cloze' ? primaryText(current.es) : primaryText(current.direction === 'es-en' ? current.es : current.en),
-      correctAnswer: primaryText(targetField),
+      prompt: current.format === 'cloze' ? primaryText(current.es)
+        : isTrueFalse ? `${primaryText(current.es)} = ${state.tfClaimEn}`
+        : isScramble ? '(sentence order)'
+        : primaryText(current.direction === 'es-en' ? current.es : current.en),
+      correctAnswer: isTrueFalse ? (state.tfIsTrue ? 'True' : 'False')
+        : isScramble ? current.sentence
+        : primaryText(targetField),
       userAnswer: userAnswerDisplay,
       correct,
     });
@@ -234,6 +296,18 @@
       } else {
         state.streamSessionStreak = 0;
       }
+      // True/False and Scramble mini-streak achievements: consecutive
+      // correct answers within that specific format only. A wrong answer
+      // in a different format doesn't touch these counters - only a wrong
+      // answer in the SAME format resets them.
+      if (current.format === 'truefalse') {
+        state.tfSessionStreak = correct ? state.tfSessionStreak + 1 : 0;
+        if (state.tfSessionStreak >= 10) unlockAchievement('streamTrueFalseStreak10');
+      }
+      if (current.format === 'scramble') {
+        state.scrambleSessionStreak = correct ? state.scrambleSessionStreak + 1 : 0;
+        if (state.scrambleSessionStreak >= 10) unlockAchievement('streamScrambleStreak10');
+      }
       if (state.progress.streamLifetime.totalCorrect >= 100) unlockAchievement('streamCorrect100');
       if (state.progress.streamLifetime.totalCorrect >= 500) unlockAchievement('streamCorrect500');
       if (state.progress.streamLifetime.audioCorrect >= 25) unlockAchievement('streamAudio25');
@@ -265,13 +339,28 @@
       }
     }
     state.lastWasTypo = wasTypo;
+    // Computed and stored BEFORE render() — render() is what builds the
+    // countdown bar and reads state.autoAdvanceDelay to set its animation
+    // duration, so this has to already be the current question's value by
+    // the time that happens. Doing this after render() left the bar
+    // animating on the previous question's (usually shorter) delay for
+    // one question every time, then sitting empty until the real,
+    // longer timeout actually fired.
+    const isCloze = current.format === 'cloze';
+    const delay = isCloze
+      ? (!correct ? 6000 : (wasTypo ? 4000 : 3000))
+      : (!correct ? 3000 : (wasTypo ? 1800 : 750));
+    state.autoAdvanceDelay = delay;
     recordAnswer(current, correct, state.input);
     render();
     // A forgiven typo has a full sentence plus the correct spelling to
     // read (see the near-miss feedback in renderQuiz) — a plain correct
     // answer's 750ms is too quick for that, but it's not as much to
     // absorb as a wrong answer's full "correct answer: X" breakdown either.
-    const delay = !correct ? 3000 : (wasTypo ? 1800 : 750);
+    // Cloze questions get noticeably longer on every outcome — there's a
+    // full sentence + English translation to read on top of the usual
+    // feedback, and a manual "Next word" button covers anyone who reads
+    // faster than that (see renderQuiz's cloze-only Next button).
     state.autoAdvanceTimer = setTimeout(() => { nextQuestion(); }, delay);
   }
 
@@ -285,6 +374,97 @@
     recordAnswer(current, correct, optionText);
     render();
     const delay = correct ? 750 : 3000;
+    state.autoAdvanceTimer = setTimeout(() => { nextQuestion(); }, delay);
+  }
+
+  // True/False: standard MC-style timing (750ms correct / 3000ms wrong).
+  // Only the target word's box moves - the distractor (when shown in a
+  // False claim) is never passed to recordAnswer at all, so it's
+  // structurally impossible for its SRS progress to be touched here.
+  function selectTrueFalse(answerIsTrue) {
+    const current = state.questions[state.index];
+    if (!current || state.checked) return;
+    const correct = answerIsTrue === state.tfIsTrue;
+    state.selectedOption = answerIsTrue ? 'True' : 'False';
+    // 1200ms rather than the usual 750ms "correct" speed used elsewhere -
+    // this is the only place in the app a countdown bar is shown on a
+    // correct answer at all (everywhere else, correct = silent auto-advance,
+    // no bar), and 750ms reads as an instant flash rather than a visible
+    // drain. The longer window also gives the auto-advance timer itself
+    // more margin.
+    const delay = correct ? 1200 : 3000;
+    state.autoAdvanceDelay = delay; // set before render() — see submitAnswer's comment on why the ordering matters
+    recordAnswer(current, correct, answerIsTrue ? 'True' : 'False');
+    render();
+    state.autoAdvanceTimer = setTimeout(() => { nextQuestion(); }, delay);
+  }
+
+  // Sentence Scramble: tap-to-place. Tapping a bank word appends it to
+  // scramblePlaced; once every word has been placed, it auto-submits -
+  // same "acting on the last input completes the question" pattern as
+  // choice mode's selectOption.
+  function scramblePlaceTile(origIndex) {
+    const current = state.questions[state.index];
+    if (!current || state.checked) return;
+    if (state.scramblePlaced.includes(origIndex)) return;
+    state.scramblePlaced.push(origIndex);
+    if (state.scramblePlaced.length === state.scrambleBank.length) {
+      submitScramble();
+    } else {
+      render();
+    }
+  }
+
+  // Tapping a placed pill in the strip sends it back to the bank -
+  // correction interaction, alongside the clear-all button below.
+  function scrambleRemoveTile(origIndex) {
+    const current = state.questions[state.index];
+    if (!current || state.checked) return;
+    state.scramblePlaced = state.scramblePlaced.filter(i => i !== origIndex);
+    render();
+  }
+
+  function scrambleClearAll() {
+    const current = state.questions[state.index];
+    if (!current || state.checked) return;
+    state.scramblePlaced = [];
+    render();
+  }
+
+  // Correct = placed order exactly matches original sentence-token order
+  // (index 0, 1, 2, ...) - a structural check, not a text comparison, so
+  // it's unaffected by punctuation/capitalization and immune to ambiguity
+  // from repeated words in the sentence. Cloze-style extended auto-advance
+  // timing (see submitAnswer's comment) since there's a full sentence +
+  // translation to read on the reveal either way.
+  function submitScramble() {
+    const current = state.questions[state.index];
+    if (!current || state.checked) return;
+    // Correctness is judged by the WORD placed at each position, not by
+    // which physical tile it came from. When a sentence contains the same
+    // word twice (e.g. two "mi"), the two tiles are interchangeable - a
+    // player who places the "other" identical tile in a slot has still
+    // produced the correct sentence, so comparing tile origIndex to
+    // position would wrongly reject them. The original word at position i
+    // is the bank tile whose origIndex === i (origIndex was assigned in
+    // original token order in prepareQuestion), so we compare texts.
+    const originalTextAt = (pos) => {
+      const tile = state.scrambleBank.find(t => t.origIndex === pos);
+      return tile ? tile.text : '';
+    };
+    const placedTextAt = (pos) => {
+      const tile = state.scrambleBank.find(t => t.origIndex === state.scramblePlaced[pos]);
+      return tile ? tile.text : '';
+    };
+    const correct = state.scramblePlaced.length === state.scrambleBank.length
+      && state.scramblePlaced.every((_, i) => placedTextAt(i) === originalTextAt(i));
+    const userAnswerDisplay = state.scramblePlaced
+      .map(i => (state.scrambleBank.find(t => t.origIndex === i) || {}).text || '')
+      .join(' ');
+    const delay = correct ? 3000 : 6000;
+    state.autoAdvanceDelay = delay;
+    recordAnswer(current, correct, userAnswerDisplay);
+    render();
     state.autoAdvanceTimer = setTimeout(() => { nextQuestion(); }, delay);
   }
 
@@ -497,6 +677,8 @@
     state.streamSessionStreak = 0;
     state.streamSessionCheckpoints = 0;
     state.streamFormatsCorrect = {};
+    state.tfSessionStreak = 0;
+    state.scrambleSessionStreak = 0;
     prepareQuestion();
     state.screen = 'quiz';
     render();

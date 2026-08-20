@@ -9,6 +9,16 @@
   // (Installed once — not re-created per render — so it can never stack up.)
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
+    // Ignore an Enter whose target is a <button>. Activating a button by
+    // tap/click on Android Chrome can synthesize an Enter keydown as part
+    // of button activation - if that lands here while state.checked is
+    // already true (e.g. a tap-to-answer True/False or multiple-choice
+    // question), it would fire a second, immediate nextQuestion() on top of
+    // the button's own handler, skipping the feedback the player just
+    // earned. Genuine "advance on Enter" only ever comes from the keyboard
+    // while focus is on the answer text input or the page body, never from
+    // a button, so excluding button targets is safe.
+    if (e.target && e.target.tagName === 'BUTTON') return;
     if (state.screen === 'quiz' && state.checked) {
       nextQuestion();
     } else if (state.screen === 'conjugate' && state.conjugateChecked) {

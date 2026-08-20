@@ -124,6 +124,35 @@
     border-bottom: 2px solid var(--ochre);
     color: var(--ochre);
   }
+  /* Cloze answer reveal: the full (un-blanked) Spanish sentence next to
+     its English translation, shown after every cloze answer regardless of
+     correct/wrong/near-miss. Flex-wrap so the pair sits side by side on
+     wider screens but drops to stacked lines on a narrow phone rather
+     than overflowing. */
+  .cloze-reveal {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--outline);
+    border-radius: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .cloze-reveal-es {
+    color: var(--cream);
+    font-weight: 600;
+  }
+  .cloze-reveal-divider {
+    color: var(--outline);
+  }
+  .cloze-reveal-en {
+    color: var(--cream-dim);
+    font-style: italic;
+  }
   .speak-btn {
     background: rgba(255,255,255,0.06);
     border: 1px solid var(--outline);
@@ -188,6 +217,76 @@
     box-shadow: 0 0 24px rgba(255,193,99,0.65);
     color: #3A2508;
   }
+
+  /* True/False: the "word = claim" display card. The True/False buttons
+     themselves reuse .option-btn/.option-list below unchanged - this is
+     just the claim being judged. */
+  .tf-claim {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-family: 'Sora', sans-serif;
+  }
+  .tf-claim-es { font-weight: 700; font-size: 26px; }
+  .tf-claim-eq { font-size: 20px; color: var(--cream-dim); }
+  .tf-claim-en { font-weight: 700; font-size: 26px; color: var(--ochre); }
+
+  /* Sentence Scramble: the sentence strip (placed words + empty slots)
+     lives in the prompt card; the tap-to-place word bank lives below it in
+     the normal bottomHtml area, styled off the same tokens as .option-btn
+     rather than introducing a new palette. */
+  .scramble-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+  .scramble-slot {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .scramble-slot.empty {
+    border-bottom: 2px solid var(--outline);
+    background: transparent;
+  }
+  .scramble-slot.filled {
+    background: rgba(255,193,99,0.16);
+    border: 1px solid var(--ochre);
+    color: var(--cream);
+  }
+  .scramble-slot.filled.tappable { cursor: pointer; }
+  .scramble-slot.filled.wrong-pos {
+    background: rgba(255,77,109,0.18);
+    border-color: var(--red);
+  }
+  .scramble-bank {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 12px;
+  }
+  .scramble-pill {
+    padding: 10px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--outline);
+    background: var(--bg-card-alt);
+    color: var(--cream);
+    font-size: 15px;
+    font-weight: 600;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .scramble-pill:hover { border-color: var(--label); }
 
   .option-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
   .option-btn {

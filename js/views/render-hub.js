@@ -63,47 +63,94 @@
     let menuHtml = '';
     if (state.showMenu) {
       menuHtml = `
-        <div class="menu-overlay" id="menu-overlay"></div>
-        <div class="menu-dropdown">
-          <label class="menu-item" style="cursor:pointer;">Speak words aloud <input type="checkbox" id="autospeak-toggle" ${settings.autoSpeak ? 'checked' : ''} /></label>
-          <label class="menu-item" style="cursor:pointer;">Sound effects <input type="checkbox" id="soundfx-toggle" ${settings.soundEffects ? 'checked' : ''} /></label>
-          <div class="menu-item" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; cursor:default;">
-            <span>Daily XP goal</span>
-            ${state.editingXPGoal ? `
-              <div style="display:flex; gap:6px; width:100%;">
-                <input type="number" id="xpgoal-edit-input" min="1" step="1" value="${state.progress.dailyXPGoal}" style="margin-bottom:0; flex:1; padding:8px 10px; font-size:14px;" />
-                <button id="xpgoal-save-btn" class="btn-secondary" style="padding:8px 14px; width:auto;">Save</button>
-              </div>
-            ` : `
-              <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                <span style="font-weight:600;">${state.progress.dailyXPGoal}</span>
-                <button id="xpgoal-edit-btn" class="link-btn" type="button">Edit</button>
-              </div>
-            `}
+        <div class="sheet-backdrop" id="menu-overlay"></div>
+        <div class="settings-sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-header">
+            <div class="sheet-title">Settings</div>
+            <button id="menu-close-btn" class="sheet-close" type="button" aria-label="Close">✕</button>
           </div>
-          <button id="menu-export-btn" class="menu-item">⬇ Download progress</button>
-          <button id="menu-import-btn" class="menu-item">⬆ Upload progress</button>
+
+          <div class="sheet-group-label">Preferences</div>
+          <div class="sheet-card">
+            <div class="sheet-row">
+              <span class="row-label">Speak words aloud</span>
+              <label class="switch">
+                <input type="checkbox" id="autospeak-toggle" ${settings.autoSpeak ? 'checked' : ''} />
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </div>
+            <div class="sheet-row">
+              <span class="row-label">Sound effects</span>
+              <label class="switch">
+                <input type="checkbox" id="soundfx-toggle" ${settings.soundEffects ? 'checked' : ''} />
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+              </label>
+            </div>
+            <div class="sheet-row sheet-row-stack">
+              ${state.editingXPGoal ? `
+                <span class="row-label">Daily XP goal</span>
+                <div class="edit-form">
+                  <input type="number" id="xpgoal-edit-input" min="1" step="1" value="${state.progress.dailyXPGoal}" />
+                  <button id="xpgoal-save-btn" class="edit-save-btn" type="button">Save</button>
+                </div>
+              ` : `
+                <div class="edit-row-static">
+                  <span class="row-label">Daily XP goal</span>
+                  <span class="edit-value">${state.progress.dailyXPGoal}</span>
+                </div>
+                <div class="edit-link-row">
+                  <button id="xpgoal-edit-btn" class="link-btn" type="button">Edit</button>
+                </div>
+              `}
+            </div>
+          </div>
+
+          <div class="sheet-group-label">Account &amp; data</div>
+          <div class="sheet-card">
+            ${state.user ? `
+              <div class="account-email">${esc(state.user.email || 'Signed in')}</div>
+              <div class="sheet-row sheet-row-stack">
+                ${(state.editingUsername || !state.username) ? `
+                  <span class="row-label">Username</span>
+                  <div class="edit-form">
+                    <input type="text" id="username-edit-input" value="${esc(state.username || '')}" placeholder="Pick a username" />
+                    <button id="username-save-btn" class="edit-save-btn" type="button">Save</button>
+                  </div>
+                ` : `
+                  <div class="edit-row-static">
+                    <span class="row-label">Username</span>
+                    <span class="edit-value">${esc(state.username)}</span>
+                  </div>
+                  <div class="edit-link-row">
+                    <button id="username-edit-btn" class="link-btn" type="button">Edit</button>
+                  </div>
+                `}
+              </div>
+            ` : ''}
+            <button id="menu-export-btn" class="sheet-row actionable sheet-row-btn" type="button">
+              <span class="row-left"><span class="row-icon-badge dl">📥</span><span class="row-label">Download progress</span></span>
+            </button>
+            <button id="menu-import-btn" class="sheet-row actionable sheet-row-btn" type="button">
+              <span class="row-left"><span class="row-icon-badge ul">📤</span><span class="row-label">Upload progress</span></span>
+            </button>
+          </div>
+
           ${state.user
-            ? `<div class="menu-item" style="opacity:0.6; cursor:default;">${esc(state.user.email || 'Signed in')}</div>
-               <div class="menu-item" style="display:flex; flex-direction:column; align-items:flex-start; gap:6px; cursor:default;">
-                 <span>Username</span>
-                 ${(state.editingUsername || !state.username) ? `
-                   <div style="display:flex; gap:6px; width:100%;">
-                     <input type="text" id="username-edit-input" value="${esc(state.username || '')}" placeholder="Pick a username" style="margin-bottom:0; flex:1; padding:8px 10px; font-size:14px;" />
-                     <button id="username-save-btn" class="btn-secondary" style="padding:8px 14px; width:auto;">Save</button>
-                   </div>
-                 ` : `
-                   <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                     <span style="font-weight:600;">${esc(state.username)}</span>
-                     <button id="username-edit-btn" class="link-btn" type="button">Edit</button>
-                   </div>
-                 `}
-               </div>
-               <button id="menu-signout-btn" class="menu-item">🚪 Sign out</button>`
-            : `<button id="menu-signin-btn" class="menu-item">👤 Sign in / Create account</button>`}
-          <a href="https://t.me/Rwapps1" target="_blank" rel="noopener noreferrer" class="menu-item">
+            ? `<div class="sheet-card signout-card">
+                 <button id="menu-signout-btn" class="sheet-row actionable sheet-row-btn" type="button">
+                   <span class="row-left"><span class="row-icon">🚪</span><span class="row-label">Sign out</span></span>
+                 </button>
+               </div>`
+            : `<div class="sheet-card">
+                 <button id="menu-signin-btn" class="sheet-row actionable sheet-row-btn" type="button">
+                   <span class="row-left"><span class="row-icon">👤</span><span class="row-label">Sign in / Create account</span></span>
+                 </button>
+               </div>`}
+
+          <a href="https://t.me/Rwapps1" target="_blank" rel="noopener noreferrer" class="telegram-row">
             <img src="dev-logo.png" alt="" class="dev-contact-logo-sm" />
-            Live Chat on Telegram
+            <span class="telegram-link-text">Live Chat on Telegram</span>
           </a>
         </div>
       `;
@@ -151,7 +198,6 @@
             </div>
             <button id="menu-btn" class="menu-btn">⋯</button>
           </div>
-          ${menuHtml}
           ${statusHtml}
           ${uploadHtml}
           <div class="card stream-hero hub-hero-pulse ${playedToday ? 'calm' : ''}">
@@ -178,7 +224,7 @@
               <div class="today-stat ${todayXP >= xpGoal ? 'goal-met' : ''}">
                 <span class="today-stat-icon">${todayXP >= xpGoal ? '✅' : '⚡'}</span>
                 <span class="today-stat-num">${todayXP} / ${xpGoal}</span>
-                <span class="today-stat-lbl">${todayXP >= xpGoal ? 'XP Goal Met!' : 'XP today'}</span>
+                <span class="today-stat-lbl">${todayXP >= xpGoal ? 'XP Goal Met' : 'XP today'}</span>
                 <div class="today-xp-bar"><div class="today-xp-bar-fill ${todayXP >= xpGoal ? 'goal-met' : ''}" style="width:${xpGoalPct}%;"></div></div>
               </div>
               <div class="today-stat">
@@ -263,6 +309,7 @@
 
           <input type="file" id="import-file" accept="application/json" style="display:none" />
         </div>
+        ${menuHtml}
       </div>
     `;
 
@@ -293,6 +340,7 @@
 
     if (state.showMenu) {
       document.getElementById('menu-overlay').addEventListener('click', () => { state.showMenu = false; render(); });
+      document.getElementById('menu-close-btn').addEventListener('click', () => { state.showMenu = false; render(); });
       document.getElementById('autospeak-toggle').addEventListener('change', (e) => {
         state.progress.settings.autoSpeak = e.target.checked;
         saveProgress();

@@ -255,11 +255,18 @@
     // guessing the missing word, so speaking current.sentence verbatim
     // (which still contains it) would just hand it over. "..." gives
     // TTS engines a natural pause where the word would go.
+    // True/False speaks the fixed Spanish word; Scramble's "Hear it" plays
+    // the full unblanked sentence - safe here (unlike cloze) since the
+    // words are already visible in the bank, just unordered, so nothing is
+    // being given away by hearing them in their real order.
     const promptWord = (current.format === 'cloze' && clozeBlank) ? `${clozeBlank.before} ... ${clozeBlank.after}`.replace(/\s+/g, ' ').trim()
+      : current.format === 'truefalse' ? primaryText(current.es)
+      : current.format === 'scramble' ? current.sentence
       : clozeFallback ? primaryText(current.en)
       : primaryText(current.direction === 'es-en' ? current.es : current.en);
     const answerWord = current.format === 'cloze' ? primaryText(current.es) : primaryText(current.direction === 'es-en' ? current.en : current.es);
     const promptLang = (current.format === 'cloze' && clozeBlank) ? 'es-ES'
+      : (current.format === 'truefalse' || current.format === 'scramble') ? 'es-ES'
       : clozeFallback ? 'en-US'
       : (current.direction === 'es-en' ? 'es-ES' : 'en-US');
     const answerLang = current.format === 'cloze' ? 'es-ES' : (current.direction === 'es-en' ? 'en-US' : 'es-ES');
@@ -280,14 +287,22 @@
     const shouldFlip = state.lastFlippedIndex !== state.index;
     if (shouldFlip) state.lastFlippedIndex = state.index;
 
+    // Centralized per-format label, used by both the Stream and non-Stream
+    // progress-label variants below (truefalse/scramble are Stream-only
+    // formats today, but this keeps the two label branches in sync either way).
+    const formatLabel = (current.format === 'cloze' && clozeBlank) ? 'FILL IN THE BLANK'
+      : current.format === 'truefalse' ? 'TRUE OR FALSE'
+      : current.format === 'scramble' ? 'PLACE IN THE CORRECT ORDER'
+      : (current.direction === 'es-en' ? 'ES → EN' : 'EN → ES');
+
     // results.length already counts the just-answered question once
     // checked is true (recordAnswer pushed it before this render), so the
     // +1 only belongs while the question is still unanswered — otherwise
     // the feedback screen for question 10 briefly claims to be question 11.
     const streamQuestionNum = state.results.length + (state.checked ? 0 : 1);
     const progressLabel = state.isStreamRound
-      ? `Question ${streamQuestionNum} · ${isAudioFormat ? 'LISTEN' : (current.format === 'cloze' && clozeBlank ? 'FILL IN THE BLANK' : (current.direction === 'es-en' ? 'ES → EN' : 'EN → ES'))}`
-      : `${state.index + 1} / ${state.questions.length} · ${(current.format === 'cloze' && clozeBlank) ? 'FILL IN THE BLANK' : (current.direction === 'es-en' ? 'ES → EN' : 'EN → ES')}`;
+      ? `Question ${streamQuestionNum} · ${isAudioFormat ? 'LISTEN' : formatLabel}`
+      : `${state.index + 1} / ${state.questions.length} · ${formatLabel}`;
 
     const orbHtml = state.isStreamRound
       ? `<div class="glow-orb-progress streak-orb"><div class="orb-num">🔥${state.progress.streak.current}</div><div class="orb-lbl">STREAK</div></div>`
@@ -304,6 +319,35 @@
       ? (current.direction === 'es-en' ? 'What does this mean?' : 'How do you say this in Spanish?')
       : (current.direction === 'es-en' ? 'Type the English translation' : 'Type the word in Spanish');
 
+    // The sentence strip: placed words as filled, tappable pills (tap to
+    // send back to the bank) and remaining slots as empty placeholders -
+    // gives a sense of progress without revealing sentence length/structure
+    // beyond word count. After a wrong answer, slots that landed in the
+    // wrong position are highlighted so the mistake is visible at a glance.
+    // MUST be computed before promptRowHtml below, which references it in
+    // the scramble branch - a let can't be read before its declaration
+    // (temporal dead zone), so declaring it later threw at render time.
+    let scrambleStripHtml = '';
+    if (current.format === 'scramble') {
+      const totalSlots = state.scrambleBank.length;
+      for (let i = 0; i < totalSlots; i++) {
+        if (i < state.scramblePlaced.length) {
+          const origIndex = state.scramblePlaced[i];
+          const tile = state.scrambleBank.find(t => t.origIndex === origIndex);
+          // Compare by word text, not tile index, so a correctly-placed
+          // duplicate word (e.g. a second "mi") isn't flagged wrong just
+          // because it came from the other identical tile - mirrors the
+          // text-based correctness check in submitScramble.
+          const originalTile = state.scrambleBank.find(t => t.origIndex === i);
+          const originalText = originalTile ? originalTile.text : '';
+          const wrongPos = state.checked && !state.wasCorrect && (tile ? tile.text : '') !== originalText;
+          scrambleStripHtml += `<button class="scramble-slot filled ${state.checked ? '' : 'tappable'} ${wrongPos ? 'wrong-pos' : ''}" data-orig="${origIndex}" ${state.checked ? 'disabled' : ''}>${esc(tile ? tile.text : '')}</button>`;
+        } else {
+          scrambleStripHtml += `<div class="scramble-slot empty"></div>`;
+        }
+      }
+    }
+
     // Audio format hides the written word entirely — listening is the
     // exercise — and always speaks it (see the autoSpeak binding below),
     // regardless of the user's own "speak words aloud" setting. Cloze
@@ -316,11 +360,86 @@
       ? `<button id="speak-prompt-btn" class="speak-btn big" title="Hear it">🔊</button><div class="audio-hint">Listen, then choose the meaning</div>`
       : (current.format === 'cloze' && clozeBlank)
       ? `<div class="audio-hint" style="margin-bottom:10px;">${instructionText}</div><div class="cloze-sentence">${esc(clozeBlank.before)}<span class="cloze-blank">____</span>${esc(clozeBlank.after)}</div><div class="prompt-row" style="margin-top:10px;"><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button><button id="hint-btn" class="hint-btn" title="Hear the full sentence">Hint</button></div>`
+      : current.format === 'truefalse'
+      ? `<div class="audio-hint" style="margin-bottom:10px;">Does this mean the same thing?</div><div class="tf-claim"><span class="tf-claim-es">${esc(primaryText(current.es))}</span><span class="tf-claim-eq">=</span><span class="tf-claim-en">${esc(state.tfClaimEn)}</span></div><div class="prompt-row" style="margin-top:10px; justify-content:center;"><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button></div>`
+      : current.format === 'scramble'
+      ? `<div class="audio-hint" style="margin-bottom:10px;">Tap the words in the right order</div><div class="scramble-strip" id="scramble-strip">${scrambleStripHtml}</div><div class="prompt-row" style="margin-top:10px; justify-content:center;"><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button>${(!state.checked && state.scramblePlaced.length > 0) ? '<button id="scramble-clear-btn" class="hint-btn" title="Clear all">Clear</button>' : ''}</div>`
       : `<div class="audio-hint" style="margin-bottom:10px;">${instructionText}</div><div class="prompt-row"><div class="prompt-word">${esc(promptWord)}</div><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button></div>${promptNote ? `<div class="prompt-note">${esc(promptNote)}</div>` : ''}`;
+
+    // Cloze answer reveal - the full sentence plus its English translation,
+    // shown after every cloze answer (correct, wrong, or a forgiven near
+    // miss) regardless of outcome. Only ever applies to cloze questions
+    // with a resolvable blank and a translation actually on the sheet -
+    // older/edited rows without one just don't show this line.
+    const clozeRevealHtml = (current.format === 'cloze' && clozeBlank && current.sentenceTranslation)
+      ? `<div class="cloze-reveal"><span class="cloze-reveal-es">${esc(current.sentence)}</span><span class="cloze-reveal-divider">—</span><span class="cloze-reveal-en">${esc(current.sentenceTranslation)}</span></div>`
+      : '';
+
+    // Same reveal treatment for Scramble - shown after every answer
+    // (correct or wrong) so the sentence's meaning is visible either way,
+    // not just when the order was wrong.
+    const scrambleRevealHtml = (current.format === 'scramble' && current.sentenceTranslation)
+      ? `<div class="cloze-reveal"><span class="cloze-reveal-es">${esc(current.sentence)}</span><span class="cloze-reveal-divider">—</span><span class="cloze-reveal-en">${esc(current.sentenceTranslation)}</span></div>`
+      : '';
 
     let bottomHtml;
 
-    if (useChoice) {
+    if (current.format === 'truefalse') {
+      let optionsHtml;
+      if (!state.checked) {
+        optionsHtml = `
+          <div class="option-list" id="tf-options">
+            <button class="option-btn" id="tf-true-btn">✅ True</button>
+            <button class="option-btn" id="tf-false-btn">❌ False</button>
+          </div>
+        `;
+      } else {
+        optionsHtml = `
+          <div class="option-list">
+            <button class="option-btn ${state.tfIsTrue ? 'correct-choice pop-anim' : (state.selectedOption === 'True' ? 'wrong-choice shake-anim' : '')}" disabled>✅ True</button>
+            <button class="option-btn ${!state.tfIsTrue ? 'correct-choice pop-anim' : (state.selectedOption === 'False' ? 'wrong-choice shake-anim' : '')}" disabled>❌ False</button>
+          </div>
+        `;
+      }
+      let feedbackHtml = '';
+      if (state.checked) {
+        // Both outcomes now get a manual escape hatch, not just wrong
+        // answers - correct used to be auto-advance-only (matching old
+        // MC/typed behavior), but that leaves no way to continue at all if
+        // the scheduled timer ever gets throttled/paused (a known risk for
+        // background JS timers in Android WebViews/TWAs). Scramble/cloze
+        // already had this fallback; True/False didn't.
+        feedbackHtml = state.wasCorrect
+          ? `
+            <div class="feedback correct"><div class="title">✅ Correct</div></div>
+            <button id="next-btn" class="btn-primary">Next word</button>
+            <div class="countdown-bar-track"><div class="countdown-bar-fill" id="countdown-fill"></div></div>
+          `
+          : `
+            <div class="feedback wrong"><div class="title">❌ Not quite</div><div class="answer">This was ${state.tfIsTrue ? 'True' : 'False'}.</div></div>
+            <button id="next-btn" class="btn-primary">Next word</button>
+            <div class="countdown-bar-track"><div class="countdown-bar-fill" id="countdown-fill"></div></div>
+          `;
+      }
+      bottomHtml = optionsHtml + feedbackHtml;
+    } else if (current.format === 'scramble') {
+      let bankHtml = '';
+      if (!state.checked) {
+        const bankTilesHtml = state.scrambleBank
+          .filter(t => !state.scramblePlaced.includes(t.origIndex))
+          .map(t => `<button class="scramble-pill" data-orig="${t.origIndex}">${esc(t.text)}</button>`)
+          .join('');
+        bankHtml = `<div class="scramble-bank" id="scramble-bank">${bankTilesHtml}</div>`;
+      }
+      let feedbackHtml = '';
+      if (state.checked) {
+        feedbackHtml = state.wasCorrect
+          ? `<div class="feedback correct"><div class="title">✅ Correct order</div>${scrambleRevealHtml}</div>`
+          : `<div class="feedback wrong"><div class="title">❌ Not quite the right order</div>${scrambleRevealHtml}</div>`;
+        feedbackHtml += `<button id="next-btn" class="btn-primary">${state.index + 1 >= state.questions.length ? 'See results' : 'Next word'}</button><div class="countdown-bar-track"><div class="countdown-bar-fill" id="countdown-fill"></div></div>`;
+      }
+      bottomHtml = bankHtml + feedbackHtml;
+    } else if (useChoice) {
       const acceptable = splitAnswers(current.direction === 'es-en' ? current.en : current.es).map(normalize);
       let optionsHtml = '<div class="option-list" id="options-container">';
       state.currentOptions.forEach((opt) => {
@@ -361,13 +480,16 @@
         <div class="feedback correct">
           <div class="title">✅ Correct</div>
           ${state.lastWasTypo ? `<div class="answer">✓ Close enough — small typo forgiven. Correct spelling: <strong>${esc(answerWord)}</strong>${answerNote ? ` (${esc(answerNote)})` : ''} <button id="speak-answer-btn" class="speak-btn" title="Hear it" style="width:26px;height:26px;font-size:12px;">🔊</button></div>` : ''}
+          ${clozeRevealHtml}
         </div>
+        ${current.format === 'cloze' ? `<button id="next-btn" class="btn-primary">${state.index + 1 >= state.questions.length ? 'See results' : 'Next word'}</button><div class="countdown-bar-track"><div class="countdown-bar-fill" id="countdown-fill"></div></div>` : ''}
       `;
     } else {
       bottomHtml = `
         <div class="feedback wrong">
           <div class="title">❌ Not quite</div>
           <div class="answer">Correct answer: <strong>${esc(answerWord)}</strong>${answerNote ? ` (${esc(answerNote)})` : ''} <button id="speak-answer-btn" class="speak-btn" title="Hear it" style="width:26px;height:26px;font-size:12px;">🔊</button></div>
+          ${clozeRevealHtml}
         </div>
         <button id="next-btn" class="btn-primary">${state.index + 1 >= state.questions.length ? 'See results' : 'Next word'}</button>
         <div class="countdown-bar-track"><div class="countdown-bar-fill" id="countdown-fill"></div></div>
@@ -399,7 +521,46 @@
     if (hintBtn) hintBtn.addEventListener('click', () => speak(current.sentence, 'es-ES', hintBtn));
     const shouldAutoSpeak = isAudioFormat || state.progress.settings.autoSpeak;
 
-    if (useChoice) {
+    if (current.format === 'truefalse') {
+      if (!state.checked) {
+        document.getElementById('tf-true-btn').addEventListener('click', () => selectTrueFalse(true));
+        document.getElementById('tf-false-btn').addEventListener('click', () => selectTrueFalse(false));
+        if (shouldAutoSpeak) speak(promptWord, promptLang, speakPromptBtn);
+      } else {
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.addEventListener('click', nextQuestion);
+        const fill = document.getElementById('countdown-fill');
+        if (fill) {
+          fill.style.transitionDuration = (state.autoAdvanceDelay || (state.wasCorrect ? 1200 : 3000)) + 'ms';
+          requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = '0%'; }); });
+        }
+      }
+    } else if (current.format === 'scramble') {
+      if (!state.checked) {
+        document.querySelectorAll('#scramble-bank .scramble-pill').forEach(btn => {
+          btn.addEventListener('click', () => scramblePlaceTile(parseInt(btn.dataset.orig, 10)));
+        });
+        document.querySelectorAll('#scramble-strip .scramble-slot.filled').forEach(btn => {
+          btn.addEventListener('click', () => scrambleRemoveTile(parseInt(btn.dataset.orig, 10)));
+        });
+        const clearBtn = document.getElementById('scramble-clear-btn');
+        if (clearBtn) clearBtn.addEventListener('click', scrambleClearAll);
+        // Deliberately NO auto-speak for scramble: promptWord is the full
+        // sentence (the answer), so auto-speaking would read it aloud on
+        // load and again on every pill tap (each tap re-renders). The 🔊
+        // button stays wired via the shared speakPromptBtn listener above,
+        // so hearing the sentence is available only on explicit press,
+        // as a hint.
+      } else {
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.addEventListener('click', nextQuestion);
+        const fill = document.getElementById('countdown-fill');
+        if (fill) {
+          fill.style.transitionDuration = (state.autoAdvanceDelay || 3000) + 'ms';
+          requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = '0%'; }); });
+        }
+      }
+    } else if (useChoice) {
       if (!state.checked) {
         document.querySelectorAll('#options-container .option-btn').forEach((btn, i) => {
           btn.addEventListener('click', () => selectOption(state.currentOptions[i]));
@@ -430,13 +591,32 @@
       if (speakAnswerBtn) speakAnswerBtn.addEventListener('click', () => speak(answerWord, answerLang, speakAnswerBtn));
       const fill = document.getElementById('countdown-fill');
       if (fill) {
+        // Matches the actual auto-advance delay (see submitAnswer) rather
+        // than assuming the CSS default 3s — cloze wrong answers now run
+        // longer, so the bar needs to finish emptying at the same moment
+        // the timer actually fires, not sooner.
+        fill.style.transitionDuration = (state.autoAdvanceDelay || 3000) + 'ms';
         requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = '0%'; }); });
       }
     } else {
-      // typed correct (possibly a forgiven near-miss) — no Next button,
-      // matches choice mode's silent auto-advance-only correct state.
+      // typed correct (possibly a forgiven near-miss) — no Next button for
+      // ordinary Quiz/Sentences words, matches choice mode's silent
+      // auto-advance-only correct state. Cloze is the one exception (see
+      // the bottomHtml above): its auto-advance runs several seconds
+      // longer so there's time to read the sentence + translation, so it
+      // gets a manual "Next word" + countdown bar the same as a wrong
+      // answer, letting a fast reader skip ahead instead of waiting it out.
       const speakAnswerBtn = document.getElementById('speak-answer-btn');
       if (speakAnswerBtn) speakAnswerBtn.addEventListener('click', () => speak(answerWord, answerLang, speakAnswerBtn));
+      if (current.format === 'cloze') {
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn) nextBtn.addEventListener('click', nextQuestion);
+        const fill = document.getElementById('countdown-fill');
+        if (fill) {
+          fill.style.transitionDuration = (state.autoAdvanceDelay || 3000) + 'ms';
+          requestAnimationFrame(() => { requestAnimationFrame(() => { fill.style.width = '0%'; }); });
+        }
+      }
     }
 
     document.getElementById('quiz-quit-btn').addEventListener('click', quitQuiz);
@@ -496,7 +676,7 @@
           <p class="celebrate-subline">Keep going, or stop here for now.</p>
           <div class="checkpoint-actions">
             <button id="stream-continue-btn" class="btn-primary">Keep going →</button>
-            <button id="stream-stop-btn" class="link-btn">Stop for today</button>
+            <button id="stream-stop-btn" class="link-btn">Take a Break</button>
           </div>
         </div>
       </div>

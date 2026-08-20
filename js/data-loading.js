@@ -18,6 +18,7 @@
       const note = (row[2] ?? '').toString().trim();
       const category = (row[3] ?? '').toString().trim();
       const sentence = (row[4] ?? '').toString().trim();
+      const sentenceTranslation = (row[5] ?? '').toString().trim();
       if (!es && !en) continue; // fully blank row - not worth flagging
       if (!es || !en) { skipped++; continue; }
       const esKey = es.toLowerCase();
@@ -28,15 +29,18 @@
           if (tag !== 'conjugation' && !CATEGORIES.some(c => c.id === tag)) unknownCats.add(tag);
         });
       }
-      const pair = { es, en, note, category, sentence };
+      const pair = { es, en, note, category, sentence, sentenceTranslation };
       if (sentence && !findClozeBlank(pair)) {
         // A sentence that doesn't actually contain its own target word
         // (typo, wrong row, edited word without updating the sentence)
         // would either break rendering or silently reveal nothing to
         // blank - drop it rather than risk either, this word just isn't
-        // cloze-eligible until the sheet is fixed.
+        // cloze-eligible until the sheet is fixed. Its translation goes
+        // with it, so a disabled cloze row never carries a stale/orphaned
+        // translation with no sentence to pair it with.
         badSentences.push(es);
         pair.sentence = '';
+        pair.sentenceTranslation = '';
       }
       cleaned.push(pair);
     }
