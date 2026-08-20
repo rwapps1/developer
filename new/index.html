@@ -23,7 +23,7 @@
      identity. No xlsx.full.min.js and no firebase-auth.js either — the
      demo never parses a spreadsheet and never touches Firebase; its word
      pool is hardcoded and its progress is a throwaway in-memory object
-     (see js/demo-boot.js). Deliberately left out of service-worker.js's
+     (see demo-boot.js). Deliberately left out of service-worker.js's
      asset list too, and no service worker is registered from this page —
      it's a one-time funnel page, not part of the installed offline app. -->
 
@@ -59,6 +59,6 @@
 <!-- Demo-only: builds the throwaway state object, the fixed 8-question
      round, small safe overrides (saveProgress/nextQuestion), and the
      signup handoff. Loads last — see its own top comment. -->
-<script src="js/demo-boot.js"></script>
+<script src="demo-boot.js"></script>
 </body>
 </html>
