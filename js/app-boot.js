@@ -26,6 +26,18 @@
     }
   });
 
+  // Landing-page demo (/new) hands off here with ?signup=1 so the person
+  // continuing from their demo round lands on the Create Account tab, not
+  // Sign In — see new/js/demo-boot.js's goToSignupFromDemo(). Only affects
+  // which tab is pre-selected; if they already have a session, initAuth()
+  // below still takes them straight to the hub regardless. Stripped from
+  // the URL right away so refreshing this tab later doesn't keep forcing
+  // signup mode.
+  if (new URLSearchParams(window.location.search).get('signup') === '1') {
+    state.authMode = 'signup';
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+
   // Checks for an existing signed-in session and decides login vs hub.
   // Independent of the word/verb list loading below — vocab data isn't
   // user-specific, so both can happen in parallel.

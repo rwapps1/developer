@@ -26,6 +26,13 @@
 
   const STORAGE_KEY = 'palabraProgress_v1';
 
+  // sessionStorage key the /new landing-page demo uses to hand its earned
+  // XP/streak/achievements to a brand-new signup. Written once by
+  // new/js/demo-boot.js right before it redirects to signup; read and
+  // cleared once by auth.js's handleAuthSubmit() on the signup branch only
+  // — sign-in never touches this, so it can't apply to an existing account.
+  const DEMO_HANDOFF_KEY = 'palabraDemoHandoff_v1';
+
   const COLORS = {
     green: '#2DD4BF',
     red: '#FF4D6D',

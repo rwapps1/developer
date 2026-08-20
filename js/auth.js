@@ -143,6 +143,41 @@
         // a normal round yet, let alone Level/XP, so "Power up your
         // learning" would be meaningless on the very first screen they see.
         state.progress.dailyDoubleLastHandled = todayDateString();
+
+        // /new demo handoff: if this signup follows a landing-page demo
+        // round, fold its already-genuine XP/streak/achievements (real
+        // recordAnswer() ran during the demo too, just against a
+        // never-persisted progress object — see new/js/demo-boot.js) into
+        // this brand new account before it's ever written to Firestore or
+        // localStorage. Only reachable from the isSignup branch — sign-in
+        // never touches this, by design. Read and cleared exactly once so
+        // it can't replay on a later signup in the same tab.
+        try {
+          const demoRaw = sessionStorage.getItem(DEMO_HANDOFF_KEY);
+          if (demoRaw) {
+            const demo = JSON.parse(demoRaw);
+            if (demo && typeof demo === 'object') {
+              state.progress.wordStats = Object.assign({}, state.progress.wordStats, demo.wordStats || {});
+              state.progress.streak = Object.assign({}, state.progress.streak, demo.streak || {});
+              state.progress.lifetime = Object.assign({}, state.progress.lifetime, demo.lifetime || {});
+              state.progress.achievements = Object.assign({}, state.progress.achievements, demo.achievements || {});
+              state.progress.dailyStreak = Object.assign({}, state.progress.dailyStreak, demo.dailyStreak || {});
+              state.progress.lastActiveDate = demo.lastActiveDate || state.progress.lastActiveDate;
+              state.progress.recentActiveDates = Array.isArray(demo.recentActiveDates) ? demo.recentActiveDates : state.progress.recentActiveDates;
+              // Baseline "today" at zero, not the merged totals — otherwise
+              // getTodayXP()/getTodayWordsCount() would net out to zero on
+              // the very first real hub view, hiding the very progress this
+              // handoff exists to show off. This genuinely is their first
+              // day either way.
+              state.progress.todaySnapshot = { date: todayDateString(), xpAtStart: 0, answeredAtStart: 0 };
+            }
+          }
+          sessionStorage.removeItem(DEMO_HANDOFF_KEY);
+        } catch (e) {
+          // Malformed or blocked storage — signup proceeds normally, just
+          // without the carried-over demo progress.
+        }
+
         state.lastSyncedMs = 0;
         const cred = await withTimeout(window.PalabraAuth.signUp(email, password), AUTH_TIMEOUT_MS);
         const signupMs = Date.now();
