@@ -1,0 +1,304 @@
+// /new landing-page demo — boot script.
+//
+// Loads last, after config.js/utils.js/audio.js/progress-xp.js/
+// achievements.js/word-selection.js/game-quiz.js/render-quiz.js/
+// render-hub.js/render-dispatch.js (all reused completely unmodified —
+// see index.html's own comments for why each other file was left out).
+//
+// This file supplies its own throwaway `state` object rather than loading
+// the real state.js, because state.js's progress field comes from
+// loadProgress() — which reads localStorage['palabraProgress_v1'], the
+// EXACT key the real signed-in app uses. If this device already has a
+// real Palabra account, that read would be harmless on its own, but it
+// would mean the demo starts from (and could visually display) someone's
+// real progress instead of a fresh one. Building a brand new in-memory
+// state/progress object here instead sidesteps that entirely — nothing
+// in this file ever reads real app storage, and (see saveProgress()
+// below) nothing it does ever writes to it either.
+//
+// Three small, deliberate overrides of otherwise-untouched game engine
+// functions are defined at the bottom: saveProgress() (drop persistence
+// entirely — Firestore push already no-ops with no state.user, so this
+// only needs to skip the localStorage line), nextQuestion() (end the
+// round after these fixed 8 questions instead of Stream's normal
+// 20-question checkpoint/infinite-topup behavior), and render() (wrapped,
+// not replaced — adds the demo-only "already have an account" escape
+// hatch, the results-screen single CTA, and the hub click-gate).
+
+  // ---- Word pool ----
+  // The 8 curated target words plus filler so getDistractors() has real
+  // candidates for multiple-choice options. Hardcoded rather than pulled
+  // from words.xlsx on purpose — this page is the first thing an ad
+  // visitor sees and can't depend on a spreadsheet fetch succeeding, and
+  // shouldn't silently change if the real word list changes later.
+  const DEMO_FILLER_WORDS = [
+    { es: 'casa', en: 'house' },
+    { es: 'perro', en: 'dog' },
+    { es: 'gato', en: 'cat' },
+    { es: 'libro', en: 'book' },
+    { es: 'amigo', en: 'friend' },
+    { es: 'día', en: 'day' },
+    { es: 'noche', en: 'night' },
+    { es: 'mesa', en: 'table' },
+    { es: 'sol', en: 'sun' },
+    { es: 'luna', en: 'moon' },
+    { es: 'café', en: 'coffee' },
+    { es: 'playa', en: 'beach' },
+    { es: 'coche', en: 'car' },
+    { es: 'niño', en: 'boy' },
+  ];
+
+  // The fixed 8-question order, agreed in advance: safe cognate wins to
+  // open, one genuine stretch (agua, typed — no spelling giveaway) placed
+  // second-to-last so the round still ends on a confident note either way.
+  const DEMO_QUESTIONS = [
+    { es: 'hotel', en: 'hotel', format: 'mc', direction: 'es-en' },
+    { es: 'gracias', en: 'thank you', format: 'audio', direction: 'es-en' },
+    { es: 'animal', en: 'animal', format: 'mc', direction: 'es-en' },
+    { es: 'hola', en: 'hello', format: 'truefalse', direction: 'es-en' },
+    { es: 'chocolate', en: 'chocolate', format: 'audio', direction: 'es-en' },
+    {
+      es: 'hospital', en: 'hospital', format: 'cloze', direction: 'es-en',
+      sentence: 'Voy al hospital porque estoy enfermo.',
+      sentenceTranslation: "I'm going to the hospital because I'm sick.",
+    },
+    { es: 'agua', en: 'water', format: 'type', direction: 'es-en' },
+    { es: 'familia', en: 'family', format: 'truefalse', direction: 'es-en' },
+  ];
+
+  const DEMO_WORD_POOL = DEMO_QUESTIONS
+    .map(q => ({ es: q.es, en: q.en }))
+    .concat(DEMO_FILLER_WORDS);
+
+  // ---- Throwaway state object ----
+  // Same shape as the real state.js, minus loadProgress() (see header
+  // comment) and minus every field only ever read by modes this page
+  // never shows (Time Attack / Memory / Conjugate / category loading) —
+  // harmless either way since reading an absent field just returns
+  // undefined in JS, but there's no reason to carry fields nothing here
+  // will ever look at.
+  const state = {
+    screen: 'quiz',
+    user: null,
+    username: '',
+    showMenu: false,
+    loading: false,
+    error: '',
+    showUpload: false,
+    pairs: DEMO_WORD_POOL,
+    mainPool: DEMO_WORD_POOL,
+    questions: DEMO_QUESTIONS.map(q => ({ ...q })),
+    index: 0,
+    input: '',
+    checked: false,
+    wasCorrect: false,
+    results: [],
+    newBestThisRound: false,
+    progress: defaultProgress(),
+    effectiveAnswerMode: 'type',
+    currentOptions: null,
+    selectedOption: null,
+    autoAdvanceTimer: null,
+    autoAdvanceDelay: 0,
+    celebrateTimer: null,
+    celebrateVariant: null,
+    celebrateNext: null,
+    lastKnownLevel: null,
+    pendingLevelUp: null,
+    levelUpNextFn: null,
+    levelUpTimer: null,
+    queuedAchievementToasts: [],
+    lastFlippedIndex: -1,
+    lastWasTypo: false,
+    resultMode: 'round',
+    isDailyDoubleRound: false,
+    // true for the whole round — this is what makes prepareQuestion()/
+    // renderQuiz() use each question's own .format instead of a single
+    // round-level answer mode. Flipped to false only at the very end,
+    // matching the real stopStream()'s own behavior, purely so
+    // renderResult() renders the same way a real Stream result would.
+    isStreamRound: true,
+    lastRoundWasStream: false,
+    lastRoundWasSentences: false,
+    streamCheckpointCount: 0,
+    streamSessionStreak: 0,
+    streamSessionCheckpoints: 0,
+    streamFormatsCorrect: {},
+    tfClaimEn: '',
+    tfIsTrue: false,
+    tfSessionStreak: 0,
+    scrambleBank: [],
+    scramblePlaced: [],
+    scrambleSessionStreak: 0,
+    activeCategory: null,
+    categoryPairs: [],
+    achievementGroup: null,
+    // Not part of the real app's state shape — checked only by this
+    // file's own render() wrapper and click-gate below.
+    isDemoMode: true,
+  };
+
+  // ---- Stubs for the two cross-file calls this page's included files
+  // still make, whose real implementations live in files deliberately not
+  // loaded here (auth.js). Both are no-ops-with-a-guard in the real app
+  // too when there's no signed-in user, so functionally this changes
+  // nothing — it just avoids a ReferenceError since auth.js itself isn't
+  // present to define them.
+  function pingActivity() {}
+  function syncBackHistory() {}
+
+  // ---- Safe persistence override ----
+  // Firestore push already no-ops with no state.user (see the real
+  // pushCloudProgressDebounced in cloud-sync.js — not loaded here anyway).
+  // The only real risk was the localStorage.setItem line in the original
+  // saveProgress(), which would write to the exact key the real signed-in
+  // app reads from. Dropping it here means this whole page can safely
+  // reuse the real recordAnswer()/unlockAchievement()/etc. machinery
+  // unmodified — every one of them already routes through saveProgress()
+  // rather than touching storage directly. checkLevelUp()/
+  // checkDailyGoalCrossed() are kept since they only touch state fields
+  // in memory.
+  function saveProgress() {
+    state.progressDirty = true;
+    checkLevelUp();
+    checkDailyGoalCrossed();
+  }
+
+  // ---- Fixed-length round override ----
+  // The real nextQuestion() only ends a Stream round via the 20-question
+  // checkpoint, topping up the batch with buildStreamBatch() (random
+  // words/formats from whatever pool is active) whenever it runs low —
+  // exactly what a curated, fixed 8-question demo must never do. This
+  // replaces it with the same ending path Quiz/Sentences/Daily Double
+  // already use once the fixed question list runs out, while still
+  // relying on state.isStreamRound === true throughout the round itself
+  // so prepareQuestion()/renderQuiz() keep using each question's own
+  // per-question .format.
+  function nextQuestion() {
+    clearAutoAdvanceTimer();
+    if (state.index + 1 >= state.questions.length) {
+      const score = state.results.filter(r => r.correct).length;
+      const total = state.results.length;
+      const perfect = total > 0 && score === total;
+      state.lastRoundWasStream = true;
+      state.isStreamRound = false;
+      suppressAchievementFX = true;
+      evaluateRoundAchievements();
+      suppressAchievementFX = false;
+      showCelebration(perfect ? 'perfect' : 'finished', 'result');
+      return;
+    }
+    state.index += 1;
+    state.input = '';
+    state.checked = false;
+    prepareQuestion();
+    render();
+  }
+
+  // ---- Signup handoff ----
+  // Stashes exactly the fields auth.js's handleAuthSubmit() knows how to
+  // fold into a brand-new signup (see js/auth.js), then sends the person
+  // to the real app's signup tab. Read and cleared there, once — never
+  // touched by signing in to an existing account.
+  function goToSignupFromDemo() {
+    try {
+      const handoff = {
+        wordStats: state.progress.wordStats,
+        streak: state.progress.streak,
+        lifetime: state.progress.lifetime,
+        achievements: state.progress.achievements,
+        dailyStreak: state.progress.dailyStreak,
+        lastActiveDate: state.progress.lastActiveDate,
+        recentActiveDates: state.progress.recentActiveDates,
+      };
+      sessionStorage.setItem(DEMO_HANDOFF_KEY, JSON.stringify(handoff));
+    } catch (e) {
+      // Storage blocked (e.g. private browsing) — signup still proceeds
+      // normally on the other end, just without the carried-over demo
+      // progress.
+    }
+    window.location.href = '../index.html?signup=1';
+  }
+
+  // Sends someone straight to the real app, letting its own normal
+  // initAuth() flow decide what they see — the sign-in form if they're
+  // not currently signed in anywhere on this device, or straight to their
+  // real hub if they already have an active session here.
+  function goToSignInFromDemo() {
+    window.location.href = '../index.html';
+  }
+
+  // ---- render() wrapper ----
+  // render-dispatch.js's render() itself is left completely untouched;
+  // this wraps it rather than editing it, so every screen it already
+  // knows how to draw (quiz/celebrate/result/start) keeps working exactly
+  // as in the real app. Only three small, purely additive things happen
+  // after the real render() returns, all gated on isDemoMode:
+  //   1. quiz screen — an "Already have an account?" link under Quit.
+  //   2. result screen — replace Play again/Change settings with a single
+  //      "See your progress" button (agreed: only one path forward here).
+  //   3. start (hub) screen — every click redirects to signup instead of
+  //      performing its real action (see the capture-phase listener
+  //      below, which handles this rather than this wrapper).
+  const realRender = render;
+  render = function () {
+    realRender();
+    if (!state.isDemoMode) return;
+
+    if (state.screen === 'quiz') {
+      const quitBtn = document.getElementById('quiz-quit-btn');
+      if (quitBtn && !document.getElementById('demo-signin-link')) {
+        const link = document.createElement('button');
+        link.id = 'demo-signin-link';
+        link.className = 'link-btn';
+        link.type = 'button';
+        link.style.display = 'block';
+        link.style.textAlign = 'center';
+        link.style.width = '100%';
+        link.style.marginTop = '10px';
+        link.textContent = 'Already have an account? Sign in';
+        link.addEventListener('click', goToSignInFromDemo);
+        quitBtn.insertAdjacentElement('afterend', link);
+      }
+    }
+
+    if (state.screen === 'result') {
+      const again = document.getElementById('again-btn');
+      if (again) again.remove();
+      const settings = document.getElementById('settings-btn');
+      if (settings) settings.remove();
+      const body = document.querySelector('.screen-body');
+      if (body && !document.getElementById('demo-continue-btn')) {
+        const cta = document.createElement('button');
+        cta.id = 'demo-continue-btn';
+        cta.className = 'btn-primary';
+        cta.style.width = '100%';
+        cta.style.marginBottom = '10px';
+        cta.textContent = 'See your progress →';
+        cta.addEventListener('click', () => { leaveResults(goHome); });
+        body.appendChild(cta);
+      }
+    }
+  };
+
+  // ---- Hub click-gate ----
+  // A single capture-phase listener on document, rather than editing
+  // render-hub.js's own click handlers one by one. Capture-phase
+  // listeners run before the bubble-phase listeners renderStart() attaches
+  // directly to each tile/button, so stopImmediatePropagation() here
+  // reliably stops the real handler (start stream, open settings, view
+  // achievements, etc.) from ever firing — every tap on the mocked hub
+  // leads to signup, exactly as agreed, with zero changes to render-hub.js
+  // itself.
+  document.addEventListener('click', function (e) {
+    if (!state.isDemoMode || state.screen !== 'start') return;
+    const app = document.getElementById('app');
+    if (!app || !app.contains(e.target)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    goToSignupFromDemo();
+  }, true);
+
+  // ---- Go ----
+  prepareQuestion();
+  render();
