@@ -200,6 +200,27 @@
     checkDailyGoalCrossed();
   }
 
+  // ---- Demo-started notification ----
+  // Mirrors notifyNewSignup() in auth.js exactly — same Telegram Bot API
+  // call, same fire-and-forget/never-throws shape, reusing the same
+  // TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID constants already loaded via
+  // config.js (no new token, no new file). A failed or disabled
+  // notification must never get in the way of someone actually starting
+  // the demo.
+  function notifyDemoStarted() {
+    if (!TELEGRAM_CHAT_ID) return;
+    try {
+      fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          text: '🚀 Someone started the Palabra demo\nvia /new landing page',
+        }),
+      }).catch(() => {});
+    } catch (e) { /* ignore — notification is best-effort only */ }
+  }
+
   // ---- Fixed-length round override ----
   // The real nextQuestion() only ends a Stream round via the 20-question
   // checkpoint, topping up the batch with buildStreamBatch() (random
@@ -336,6 +357,7 @@
       </div>
     `;
     document.getElementById('demo-start-btn').addEventListener('click', () => {
+      notifyDemoStarted();
       state.screen = 'quiz';
       prepareQuestion();
       render();
