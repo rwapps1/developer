@@ -233,10 +233,17 @@
 
   // ---- Signup handoff ----
   // Stashes exactly the fields auth.js's handleAuthSubmit() knows how to
-  // fold into a brand-new signup (see js/auth.js), then sends the person
-  // to the real app's signup tab. Read and cleared there, once — never
+  // fold into a brand-new signup (see js/auth.js), shows a brief message
+  // so the jump to signup doesn't feel abrupt, then sends the person to
+  // the real app's signup tab. Read and cleared there, once — never
   // touched by signing in to an existing account.
+  let signupHandoffStarted = false;
   function goToSignupFromDemo() {
+    // Guards against a double-tap on the hub (still possible during the
+    // toast's own delay below) stacking a second toast and redirect.
+    if (signupHandoffStarted) return;
+    signupHandoffStarted = true;
+
     try {
       const handoff = {
         wordStats: state.progress.wordStats,
@@ -253,7 +260,20 @@
       // normally on the other end, just without the carried-over demo
       // progress.
     }
-    window.location.href = '../index.html?signup=1';
+
+    // Reuses the exact same toast styling as the real achievement toasts
+    // (achievement-toast/.show, already loaded via progress.css) — just
+    // its own icon/copy, not an ACHIEVEMENTS lookup, since this isn't an
+    // achievement.
+    const toast = document.createElement('div');
+    toast.className = 'achievement-toast';
+    toast.innerHTML = '<div class="toast-icon">💾</div><div><div class="toast-title">Create your account</div><div class="toast-name">to save your progress</div></div>';
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.classList.add('show'); });
+
+    setTimeout(() => {
+      window.location.href = '../index.html?signup=1';
+    }, 1400);
   }
 
   // Sends someone straight to the real app, letting its own normal
@@ -334,6 +354,29 @@
     if (!state.isDemoMode) return;
 
     if (state.screen === 'quiz') {
+      // The top progress-tile row: render-quiz.js's own renderQuiz()
+      // builds this assuming a Stream round's 20-question checkpoint
+      // block (state.streamCheckpointCount), which this demo's
+      // nextQuestion() override deliberately never increments (see its
+      // own comment above) - so left untouched it always drew a static
+      // row of 20 slots with only the first one ever lit. Replaced here
+      // with an 8-slot version using the exact same fill logic
+      // render-quiz.js's own fixed-length (non-Stream) branch already
+      // uses elsewhere, just inlined rather than calling it, since it's
+      // markup generation, not a function this file can invoke directly.
+      const tilesEl = document.querySelector('.tiles');
+      if (tilesEl) {
+        tilesEl.style.gridTemplateColumns = `repeat(${state.questions.length}, 1fr)`;
+        let tilesHtml = '';
+        state.questions.forEach((_, i) => {
+          let bg = 'var(--outline)';
+          if (i < state.results.length) bg = state.results[i].correct ? COLORS.green : COLORS.red;
+          else if (i === state.index) bg = COLORS.ochre;
+          tilesHtml += `<div class="tile" style="background:${bg}"></div>`;
+        });
+        tilesEl.innerHTML = tilesHtml;
+      }
+
       const quitBtn = document.getElementById('quiz-quit-btn');
       if (quitBtn && !document.getElementById('demo-signin-link')) {
         const link = document.createElement('button');
