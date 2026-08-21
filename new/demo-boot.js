@@ -261,19 +261,33 @@
       // progress.
     }
 
-    // Reuses the exact same toast styling as the real achievement toasts
-    // (achievement-toast/.show, already loaded via progress.css) — just
-    // its own icon/copy, not an ACHIEVEMENTS lookup, since this isn't an
-    // achievement.
-    const toast = document.createElement('div');
-    toast.className = 'achievement-toast';
-    toast.innerHTML = '<div class="toast-icon">💾</div><div><div class="toast-title">Create your account</div><div class="toast-name">to save your progress</div></div>';
-    document.body.appendChild(toast);
-    requestAnimationFrame(() => { toast.classList.add('show'); });
+    // A centered modal, not a toast — reuses the Daily Double popup's own
+    // shell classes (dd-modal-backdrop/dd-card/dd-ring-*, loaded via
+    // daily-double.css) for the dimmed-background/centered-card look,
+    // since a corner achievement-style toast read as a reward rather
+    // than what this actually is: a requirement before continuing. Only
+    // the shell and ring are reused — the eyebrow/headline/subline text
+    // and icon are this modal's own, not Daily Double's multiplier
+    // content.
+    const modal = document.createElement('div');
+    modal.className = 'dd-modal-backdrop';
+    modal.innerHTML = `
+      <div class="dd-card">
+        <div class="dd-ring-outer">
+          <div class="dd-ring-disc">
+            <div class="dd-ring-inner"><span style="font-size:34px;">💾</span></div>
+          </div>
+        </div>
+        <div class="dd-eyebrow">Almost there</div>
+        <h2 class="dd-headline">Create your account</h2>
+        <p class="dd-subline">to save your progress</p>
+      </div>
+    `;
+    document.body.appendChild(modal);
 
     setTimeout(() => {
       window.location.href = '../index.html?signup=1';
-    }, 1400);
+    }, 1600);
   }
 
   // Sends someone straight to the real app, letting its own normal
