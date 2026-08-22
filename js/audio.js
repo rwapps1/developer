@@ -77,7 +77,11 @@
     return reverbNode;
   }
 
-  function playNote(ctx, freq, startTime, duration, type, peakGain) {
+  // wetAmount (optional) sends the raw oscillator — not the short dry
+  // envelope above — into the shared reverb with its own longer decay, so
+  // a landing/final note can ring out with a shimmer tail without changing
+  // how the dry note itself sounds or how long it plays.
+  function playNote(ctx, freq, startTime, duration, type, peakGain, wetAmount) {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = type;
@@ -87,14 +91,30 @@
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     osc.connect(gain);
     gain.connect(ctx.destination);
+
+    if (wetAmount) {
+      const reverb = getReverbNode(ctx);
+      const wetGain = ctx.createGain();
+      wetGain.gain.setValueAtTime(0.0001, startTime);
+      wetGain.gain.exponentialRampToValueAtTime(wetAmount, startTime + 0.03);
+      wetGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration + 0.9);
+      osc.connect(wetGain);
+      wetGain.connect(reverb);
+    }
+
     osc.start(startTime);
-    osc.stop(startTime + duration + 0.05);
+    osc.stop(startTime + duration + (wetAmount ? 1.0 : 0.05));
   }
 
   // Brassier note for the "perfect round" fanfare: sawtooth + triangle
   // layered through a lowpass filter, rounding the sawtooth's harsh edge
   // into something closer to a horn than a chime.
-  function playBrassNote(ctx, freq, startTime, duration, peakGain) {
+  // wetAmount (optional): same idea as playNote's — taps the raw
+  // (pre-filter, pre-short-envelope) oscillator signal into a
+  // longer-decaying send to the shared reverb, so a fanfare's landing note
+  // can ring out with a shimmer tail instead of cutting off with the dry
+  // note. Used only on each fanfare's final note (see below).
+  function playBrassNote(ctx, freq, startTime, duration, peakGain, wetAmount) {
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 3200;
@@ -117,8 +137,20 @@
     osc2.frequency.value = freq;
     osc2.connect(gain);
 
-    osc1.start(startTime); osc1.stop(startTime + duration + 0.05);
-    osc2.start(startTime); osc2.stop(startTime + duration + 0.05);
+    if (wetAmount) {
+      const reverb = getReverbNode(ctx);
+      const wetGain = ctx.createGain();
+      wetGain.gain.setValueAtTime(0.0001, startTime);
+      wetGain.gain.exponentialRampToValueAtTime(wetAmount, startTime + 0.03);
+      wetGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration + 0.9);
+      osc1.connect(wetGain);
+      osc2.connect(wetGain);
+      wetGain.connect(reverb);
+    }
+
+    const stopAt = startTime + duration + (wetAmount ? 1.0 : 0.05);
+    osc1.start(startTime); osc1.stop(stopAt);
+    osc2.start(startTime); osc2.stop(stopAt);
   }
 
   // Bright, percussive note used by the correct-answer ping and the
@@ -291,7 +323,8 @@
     const step = 0.11;
     notes.forEach((freq, i) => {
       const isLast = i === notes.length - 1;
-      playBrassNote(ctx, freq, now + 0.05 + i * step, isLast ? 0.5 : 0.12, isLast ? 0.24 : 0.17);
+      // landing note gets a reverb shimmer tail — everything before it unchanged
+      playBrassNote(ctx, freq, now + 0.05 + i * step, isLast ? 0.5 : 0.12, isLast ? 0.24 : 0.17, isLast ? 0.22 : 0);
     });
   }
 
@@ -304,7 +337,9 @@
     playNote(ctx, 523.25, now + 0.05, 0.16, 'triangle');
     playNote(ctx, 659.25, now + 0.15, 0.16, 'triangle');
     playNote(ctx, 783.99, now + 0.25, 0.18, 'triangle');
-    playNote(ctx, 1046.5, now + 0.36, 0.32, 'triangle', 0.18);
+    // landing note gets a reverb shimmer tail — same treatment as the
+    // Perfect Round fanfare's landing note, deliberately lighter here
+    playNote(ctx, 1046.5, now + 0.36, 0.32, 'triangle', 0.18, 0.16);
   }
 
   // Level-up fanfare — an ascending trumpet-style call (same playBrassNote
@@ -323,6 +358,7 @@
     const step = 0.14;
     runNotes.forEach((freq, i) => {
       const isLast = i === runNotes.length - 1;
-      playBrassNote(ctx, freq, now + 0.12 + i * step, isLast ? 0.9 : 0.18, isLast ? 0.26 : 0.22);
+      // landing note gets a reverb shimmer tail, timed under the ring's ~1s draw-in
+      playBrassNote(ctx, freq, now + 0.12 + i * step, isLast ? 0.9 : 0.18, isLast ? 0.26 : 0.22, isLast ? 0.25 : 0);
     });
   }

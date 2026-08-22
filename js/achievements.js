@@ -190,22 +190,80 @@
     if (state.progress.settings.roundLength === 'all') unlockAchievement('allWords');
   }
 
+  // Was 44 DOM divs each running a fixed straight-line CSS fall
+  // (@keyframes confettiFall — top to 110vh, linear per-piece timing).
+  // Rewritten to a single canvas with real per-frame physics: gravity that
+  // accelerates the fall, a sine-wave horizontal sway so pieces drift
+  // instead of dropping in a straight line, and rotation — closer to how
+  // confetti actually behaves. Cleans itself up once every piece has
+  // faded or fallen off-screen, same as the old timeout-based removal.
   function launchConfetti() {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const container = document.createElement('div');
-    container.className = 'confetti-container';
-    document.body.appendChild(container);
-    const colors = ['#FFC163', '#FF4D6D', '#2DD4BF', '#C9A8FF'];
-    const count = 44;
-    for (let i = 0; i < count; i++) {
-      const piece = document.createElement('div');
-      piece.className = 'confetti-piece';
-      piece.style.left = (Math.random() * 100) + '%';
-      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-      piece.style.animationDelay = (Math.random() * 0.35) + 's';
-      piece.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
-      piece.style.transform = 'rotate(' + Math.floor(Math.random() * 360) + 'deg)';
-      container.appendChild(piece);
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'confetti-canvas';
+    document.body.appendChild(canvas);
+    const ctx2d = canvas.getContext('2d');
+    if (!ctx2d) { canvas.remove(); return; }
+
+    const dpr = window.devicePixelRatio || 1;
+    function resize() {
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width = window.innerWidth + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    setTimeout(() => { container.remove(); }, 3500);
+    resize();
+    window.addEventListener('resize', resize);
+
+    const colors = ['#FFC163', '#FF4D6D', '#2DD4BF', '#C9A8FF'];
+    const w = window.innerWidth, h = window.innerHeight;
+    let particles = [];
+    const count = 70;
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: Math.random() * w,
+        y: -20 - Math.random() * 100,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: 1.4 + Math.random() * 1.8,
+        swayAmp: 0.3 + Math.random() * 0.7,
+        swayFreq: 0.015 + Math.random() * 0.02,
+        swayPhase: Math.random() * Math.PI * 2,
+        size: 6 + Math.random() * 6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.25,
+        life: 0,
+        maxLife: 170 + Math.random() * 90
+      });
+    }
+
+    function step() {
+      ctx2d.clearRect(0, 0, w, h);
+      particles.forEach(p => {
+        p.vy += 0.05;
+        p.x += p.vx + Math.sin(p.life * p.swayFreq + p.swayPhase) * p.swayAmp;
+        p.y += p.vy;
+        p.rot += p.vr;
+        p.life++;
+        const fadeStart = p.maxLife * 0.8;
+        const alpha = p.life > fadeStart ? Math.max(0, 1 - (p.life - fadeStart) / (p.maxLife - fadeStart)) : 1;
+        ctx2d.save();
+        ctx2d.translate(p.x, p.y);
+        ctx2d.rotate(p.rot);
+        ctx2d.globalAlpha = alpha;
+        ctx2d.fillStyle = p.color;
+        ctx2d.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.6);
+        ctx2d.restore();
+      });
+      particles = particles.filter(p => p.life < p.maxLife && p.y < h + 40);
+      if (particles.length > 0) {
+        requestAnimationFrame(step);
+      } else {
+        window.removeEventListener('resize', resize);
+        canvas.remove();
+      }
+    }
+    step();
   }
