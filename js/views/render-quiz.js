@@ -645,26 +645,25 @@
     else if (state.celebrateNext === 'conjugate-result') bgClass = 'bg-conjugate';
     else if (state.celebrateNext === 'result') bgClass = state.resultMode === 'timeattack' ? 'bg-timeattack' : 'bg-quiz';
 
-    // Round Complete gets small radiating "impact ticks" (like the clap
-    // actually landing) since 🙌 is a hands-together gesture; Perfect
-    // Round's 💯 doesn't have an equivalent motion to echo, so it skips them.
-    const impactTicksHtml = !isPerfect ? `
-      <svg class="impact-ticks" viewBox="0 0 100 100">
-        <line x1="30" y1="14" x2="24" y2="3"></line>
-        <line x1="42" y1="6" x2="40" y2="-6"></line>
-        <line x1="55" y1="4" x2="55" y2="-9"></line>
-        <line x1="68" y1="6" x2="70" y2="-6"></line>
-        <line x1="80" y1="14" x2="86" y2="3"></line>
-      </svg>
-    ` : '';
+    // Perfect gets the warm swirl; a plain finish gets the cooler neutral
+    // swirl plus a ring of "impact" ticks that flick outward on entry,
+    // like the clap actually landing — see celebration.css.
+    const swirlHtml = isPerfect
+      ? `<div class="celebrate-badge-swirl swirl-perfect-a"></div><div class="celebrate-badge-swirl swirl-perfect-b"></div>`
+      : `<div class="celebrate-badge-swirl swirl-neutral-a"></div><div class="celebrate-badge-swirl swirl-neutral-b"></div>
+         <svg class="impact-ticks" viewBox="0 0 100 100">
+           <line class="tick" x1="30" y1="14" x2="24" y2="3" stroke="#cdbdf7" stroke-width="3" stroke-linecap="round"></line>
+           <line class="tick" x1="42" y1="6" x2="40" y2="-6" stroke="#cdbdf7" stroke-width="3" stroke-linecap="round"></line>
+           <line class="tick" x1="55" y1="4" x2="55" y2="-9" stroke="#cdbdf7" stroke-width="3" stroke-linecap="round"></line>
+           <line class="tick" x1="68" y1="6" x2="70" y2="-6" stroke="#cdbdf7" stroke-width="3" stroke-linecap="round"></line>
+           <line class="tick" x1="80" y1="14" x2="86" y2="3" stroke="#cdbdf7" stroke-width="3" stroke-linecap="round"></line>
+         </svg>`;
 
     app.innerHTML = `
       <div class="screen ${bgClass} celebrate-screen" id="celebrate-screen-el">
         <div class="celebrate-wrap">
-          <div class="celebrate-badge-ring ${isPerfect ? 'perfect' : ''}">
-            <div class="badge-swirl swirl-a"></div>
-            <div class="badge-swirl swirl-b"></div>
-            ${impactTicksHtml}
+          <div class="celebrate-badge-ring ${isPerfect ? 'perfect' : 'neutral'}">
+            ${swirlHtml}
             <div class="celebrate-badge-disc">${isPerfect ? '💯' : '🙌'}</div>
           </div>
           <div class="celebrate-headline ${isPerfect ? 'perfect' : 'finished'}">${isPerfect ? '¡Perfecto!' : '¡Ronda completa!'}</div>
@@ -695,7 +694,9 @@
     app.innerHTML = `
       <div class="screen bg-quiz stream-checkpoint-screen">
         <div class="celebrate-wrap">
-          <div class="celebrate-badge-ring">
+          <div class="celebrate-badge-ring fire">
+            <div class="celebrate-badge-swirl swirl-fire-a"></div>
+            <div class="celebrate-badge-swirl swirl-fire-b"></div>
             <div class="celebrate-badge-disc">🔥</div>
           </div>
           <div class="celebrate-headline finished">${correctInBlock}/${STREAM_CHECKPOINT_SIZE} in a row!</div>
@@ -709,6 +710,11 @@
     `;
     document.getElementById('stream-continue-btn').addEventListener('click', continueStream);
     document.getElementById('stream-stop-btn').addEventListener('click', stopStream);
+    // Previously silent and static — now gets the same fire-swirl +
+    // rising-embers + whoosh/crackle treatment as the other celebration
+    // screens (see FX Lab's Streak milestone mockup).
+    playStreakSound();
+    emitStreakEmbers();
   }
 
   // Shown once, right after a results screen is left, if a level-up
@@ -716,25 +722,55 @@
   // checkLevelUp()). Uses a fixed gold theme rather than picking up
   // whichever game just finished — this is a meta-milestone spanning all
   // four games, not a per-game moment the way Celebrate is.
+  // Draws the Level Up ring in from empty to full over 1s (matching the
+  // rising sweep in playLevelUpFanfare(), which resolves into its landing
+  // chord at the same moment), flipping the number from the real previous
+  // level to the new one right as the ring closes. See checkLevelUp() in
+  // progress-xp.js for where pendingLevelUpFrom is captured.
+  function animateLevelRing(fromLevel, toLevel) {
+    const circle = document.getElementById('level-ring-fill');
+    const numberEl = document.getElementById('levelup-num');
+    if (!circle || !numberEl) return;
+    const circumference = 376.99; // 2 * PI * r(60), matches the SVG circle's radius
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    numberEl.classList.remove('flip');
+    numberEl.textContent = String(fromLevel);
+
+    if (reduceMotion) {
+      circle.style.transition = 'none';
+      circle.style.strokeDashoffset = 0;
+      numberEl.textContent = String(toLevel);
+      return;
+    }
+
+    circle.style.transition = 'none';
+    circle.style.strokeDashoffset = circumference;
+    void circle.getBoundingClientRect(); // force reflow so the reset above isn't batched with the transition-in below
+    circle.style.transition = 'stroke-dashoffset 1s cubic-bezier(.4,.1,.2,1)';
+    circle.style.strokeDashoffset = 0;
+
+    setTimeout(() => {
+      numberEl.textContent = String(toLevel);
+      numberEl.classList.remove('flip');
+      void numberEl.offsetWidth;
+      numberEl.classList.add('flip');
+    }, 900);
+  }
+
   function renderLevelUp() {
     const app = document.getElementById('app');
     const level = getXPLevel(state.progress).level;
-    // This screen only fires when a level-up actually happened this round
-    // (see checkLevelUp()), so level-1 is the level being left behind. If a
-    // single round can ever jump more than one level, this still lands on
-    // the right final number — only the ring's starting point would be off
-    // by however many levels were skipped, which is a rare/cosmetic edge
-    // case rather than a wrong result.
-    const prevLevel = Math.max(1, level - 1);
+    const fromLevel = typeof state.pendingLevelUpFrom === 'number' ? state.pendingLevelUpFrom : Math.max(1, level - 1);
 
     app.innerHTML = `
       <div class="screen bg-achievements levelup-screen" id="levelup-screen-el">
         <div class="levelup-wrap">
           <div class="levelup-ring-outer">
             <svg class="levelup-ring-svg" viewBox="0 0 148 148">
-              <circle class="levelup-ring-fill" id="levelup-ring-fill" cx="74" cy="74" r="60"></circle>
+              <circle class="levelup-ring-fill" id="level-ring-fill" cx="74" cy="74" r="60"></circle>
             </svg>
-            <div class="levelup-disc-inner"><span class="levelup-num" id="levelup-num">${prevLevel}</span></div>
+            <div class="levelup-disc-inner"><span class="levelup-num" id="levelup-num">${fromLevel}</span></div>
           </div>
           <h1 class="levelup-headline">Level Up!</h1>
           <p class="levelup-subline">You reached Level ${level}</p>
@@ -744,39 +780,7 @@
     `;
     document.getElementById('levelup-screen-el').addEventListener('click', advanceFromLevelUp);
     playLevelUpFanfare();
-    animateLevelUpRing(level);
-  }
-
-  // Draws the level ring in clockwise from empty, flipping the number from
-  // the old level to the new one right as it closes, instead of the ring
-  // (and number) simply appearing pre-filled.
-  function animateLevelUpRing(level) {
-    const circle = document.getElementById('levelup-ring-fill');
-    const numberEl = document.getElementById('levelup-num');
-    if (!circle || !numberEl) return;
-    const circumference = 2 * Math.PI * 60;
-    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    if (reduceMotion) {
-      circle.style.strokeDasharray = circumference;
-      circle.style.strokeDashoffset = 0;
-      numberEl.textContent = level;
-      return;
-    }
-
-    circle.style.transition = 'none';
-    circle.style.strokeDasharray = circumference;
-    circle.style.strokeDashoffset = circumference;
-    void circle.getBoundingClientRect();
-    circle.style.transition = 'stroke-dashoffset 1s cubic-bezier(.4,.1,.2,1)';
-    circle.style.strokeDashoffset = 0;
-
-    setTimeout(() => {
-      numberEl.textContent = level;
-      numberEl.classList.remove('flip');
-      void numberEl.offsetWidth;
-      numberEl.classList.add('flip');
-    }, 900);
+    animateLevelRing(fromLevel, level);
   }
 
   function renderResult() {
