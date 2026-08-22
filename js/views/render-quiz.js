@@ -363,7 +363,7 @@
       : current.format === 'truefalse'
       ? `<div class="audio-hint" style="margin-bottom:10px;">Does this mean the same thing?</div><div class="tf-claim"><span class="tf-claim-es">${esc(primaryText(current.es))}</span><span class="tf-claim-eq">=</span><span class="tf-claim-en">${esc(state.tfClaimEn)}</span></div><div class="prompt-row" style="margin-top:10px; justify-content:center;"><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button></div>`
       : current.format === 'scramble'
-      ? `<div class="audio-hint" style="margin-bottom:10px;">Tap the words in the right order</div><div class="scramble-strip" id="scramble-strip">${scrambleStripHtml}</div><div class="prompt-row" style="margin-top:10px; justify-content:center;"><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button>${(!state.checked && state.scramblePlaced.length > 0) ? '<button id="scramble-clear-btn" class="hint-btn" title="Clear all">Clear</button>' : ''}</div>`
+      ? `<div class="audio-hint" style="margin-bottom:10px;">Tap the words in the right order</div><div class="scramble-strip" id="scramble-strip">${scrambleStripHtml}</div><div class="prompt-row" style="margin-top:10px; justify-content:center;"><button id="speak-prompt-btn" class="speak-btn stacked-hint" title="Hear the sentence (hint)"><span class="hint-icon-glyph">🔊</span><span class="hint-icon-label">Hint</span></button>${(!state.checked && state.scramblePlaced.length > 0) ? '<button id="scramble-clear-btn" class="hint-btn" title="Clear all">Clear</button>' : ''}</div>`
       : `<div class="audio-hint" style="margin-bottom:10px;">${instructionText}</div><div class="prompt-row"><div class="prompt-word">${esc(promptWord)}</div><button id="speak-prompt-btn" class="speak-btn" title="Hear it">🔊</button></div>${promptNote ? `<div class="prompt-note">${esc(promptNote)}</div>` : ''}`;
 
     // Cloze answer reveal - the full sentence plus its English translation,
@@ -425,9 +425,19 @@
     } else if (current.format === 'scramble') {
       let bankHtml = '';
       if (!state.checked) {
+        // Render every tile in state.scrambleBank's fixed shuffle-order
+        // slot always, rather than filtering placed ones out of the array.
+        // Filtering removed them from the flow entirely, so the remaining
+        // flex-wrap pills reflowed and visibly jumped every time one was
+        // placed. Placed tiles now stay put in the DOM as an invisible,
+        // non-interactive placeholder that still occupies their original
+        // space (see .scramble-pill.placed in quiz.css) - positions stay
+        // static for the whole question, in or out of the bank.
         const bankTilesHtml = state.scrambleBank
-          .filter(t => !state.scramblePlaced.includes(t.origIndex))
-          .map(t => `<button class="scramble-pill" data-orig="${t.origIndex}">${esc(t.text)}</button>`)
+          .map(t => {
+            const isPlaced = state.scramblePlaced.includes(t.origIndex);
+            return `<button class="scramble-pill${isPlaced ? ' placed' : ''}" data-orig="${t.origIndex}" ${isPlaced ? 'disabled' : ''}>${esc(t.text)}</button>`;
+          })
           .join('');
         bankHtml = `<div class="scramble-bank" id="scramble-bank">${bankTilesHtml}</div>`;
       }
@@ -635,10 +645,26 @@
     else if (state.celebrateNext === 'conjugate-result') bgClass = 'bg-conjugate';
     else if (state.celebrateNext === 'result') bgClass = state.resultMode === 'timeattack' ? 'bg-timeattack' : 'bg-quiz';
 
+    // Round Complete gets small radiating "impact ticks" (like the clap
+    // actually landing) since 🙌 is a hands-together gesture; Perfect
+    // Round's 💯 doesn't have an equivalent motion to echo, so it skips them.
+    const impactTicksHtml = !isPerfect ? `
+      <svg class="impact-ticks" viewBox="0 0 100 100">
+        <line x1="30" y1="14" x2="24" y2="3"></line>
+        <line x1="42" y1="6" x2="40" y2="-6"></line>
+        <line x1="55" y1="4" x2="55" y2="-9"></line>
+        <line x1="68" y1="6" x2="70" y2="-6"></line>
+        <line x1="80" y1="14" x2="86" y2="3"></line>
+      </svg>
+    ` : '';
+
     app.innerHTML = `
       <div class="screen ${bgClass} celebrate-screen" id="celebrate-screen-el">
         <div class="celebrate-wrap">
           <div class="celebrate-badge-ring ${isPerfect ? 'perfect' : ''}">
+            <div class="badge-swirl swirl-a"></div>
+            <div class="badge-swirl swirl-b"></div>
+            ${impactTicksHtml}
             <div class="celebrate-badge-disc">${isPerfect ? '💯' : '🙌'}</div>
           </div>
           <div class="celebrate-headline ${isPerfect ? 'perfect' : 'finished'}">${isPerfect ? '¡Perfecto!' : '¡Ronda completa!'}</div>
@@ -693,14 +719,22 @@
   function renderLevelUp() {
     const app = document.getElementById('app');
     const level = getXPLevel(state.progress).level;
+    // This screen only fires when a level-up actually happened this round
+    // (see checkLevelUp()), so level-1 is the level being left behind. If a
+    // single round can ever jump more than one level, this still lands on
+    // the right final number — only the ring's starting point would be off
+    // by however many levels were skipped, which is a rare/cosmetic edge
+    // case rather than a wrong result.
+    const prevLevel = Math.max(1, level - 1);
 
     app.innerHTML = `
       <div class="screen bg-achievements levelup-screen" id="levelup-screen-el">
         <div class="levelup-wrap">
           <div class="levelup-ring-outer">
-            <div class="levelup-disc">
-              <div class="levelup-disc-inner"><span class="levelup-num">${level}</span></div>
-            </div>
+            <svg class="levelup-ring-svg" viewBox="0 0 148 148">
+              <circle class="levelup-ring-fill" id="levelup-ring-fill" cx="74" cy="74" r="60"></circle>
+            </svg>
+            <div class="levelup-disc-inner"><span class="levelup-num" id="levelup-num">${prevLevel}</span></div>
           </div>
           <h1 class="levelup-headline">Level Up!</h1>
           <p class="levelup-subline">You reached Level ${level}</p>
@@ -710,6 +744,39 @@
     `;
     document.getElementById('levelup-screen-el').addEventListener('click', advanceFromLevelUp);
     playLevelUpFanfare();
+    animateLevelUpRing(level);
+  }
+
+  // Draws the level ring in clockwise from empty, flipping the number from
+  // the old level to the new one right as it closes, instead of the ring
+  // (and number) simply appearing pre-filled.
+  function animateLevelUpRing(level) {
+    const circle = document.getElementById('levelup-ring-fill');
+    const numberEl = document.getElementById('levelup-num');
+    if (!circle || !numberEl) return;
+    const circumference = 2 * Math.PI * 60;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reduceMotion) {
+      circle.style.strokeDasharray = circumference;
+      circle.style.strokeDashoffset = 0;
+      numberEl.textContent = level;
+      return;
+    }
+
+    circle.style.transition = 'none';
+    circle.style.strokeDasharray = circumference;
+    circle.style.strokeDashoffset = circumference;
+    void circle.getBoundingClientRect();
+    circle.style.transition = 'stroke-dashoffset 1s cubic-bezier(.4,.1,.2,1)';
+    circle.style.strokeDashoffset = 0;
+
+    setTimeout(() => {
+      numberEl.textContent = level;
+      numberEl.classList.remove('flip');
+      void numberEl.offsetWidth;
+      numberEl.classList.add('flip');
+    }, 900);
   }
 
   function renderResult() {
