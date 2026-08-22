@@ -208,3 +208,33 @@
       transform: none !important;
     }
   }
+
+  /* --- Achievement toast badge: hexagonal medallion + shine sweep ---
+     Only styles the new inner badge markup (see achievementBadgeHtml() in
+     achievements.js) — deliberately doesn't touch .achievement-toast /
+     .toast-title / .toast-name, which live elsewhere and already handle
+     the toast shell's position and .show slide animation. */
+  .toast-badge-hex {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    flex: 0 0 auto;
+  }
+  .badge-hex-svg { width: 54px; height: 54px; display: block; overflow: visible; }
+  .toast-sparkle-canvas { position: absolute; inset: -30px; pointer-events: none; }
+  .badge-shine {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.6) 48%, transparent 66%);
+    transform: translateX(-130%);
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+  .achievement-toast.show .badge-shine { animation: toastShineSweep 1.1s ease-out 0.2s; }
+  @keyframes toastShineSweep {
+    0%   { transform: translateX(-130%); }
+    100% { transform: translateX(130%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .achievement-toast.show .badge-shine { animation: none !important; opacity: 0; }
+  }
