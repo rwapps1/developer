@@ -183,6 +183,12 @@
       return;
     }
     if (level > state.lastKnownLevel) {
+      // Stash the pre-level-up value before overwriting it, so the Level
+      // Up ring animation (renderLevelUp() in render-quiz.js) can draw
+      // itself in from the real previous level rather than guessing
+      // `level - 1` — a multi-level jump (e.g. a big XP grant) should
+      // still show the actual prior number, not an approximation.
+      state.pendingLevelUpFrom = state.lastKnownLevel;
       state.pendingLevelUp = level;
       state.lastKnownLevel = level;
     }
