@@ -184,6 +184,31 @@
     background: rgba(201,168,255,0.14);
     border-color: var(--label);
   }
+  /* Scramble's speak button: same round-button family as .speak-btn (so
+     .speak-btn.speaking's existing pulse animation still applies unchanged
+     while it's talking), but taller/rectangular to fit a caption under the
+     icon - unlike other modes, Scramble's "hear it" plays the full ordered
+     sentence, which functionally *is* the answer, so it needs to visibly
+     read as a hint rather than an innocuous replay button. */
+  .speak-btn.stacked-hint {
+    width: auto;
+    min-width: 46px;
+    height: 44px;
+    padding: 4px 12px;
+    border-radius: 14px;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .hint-icon-glyph { font-size: 16px; line-height: 1; }
+  .hint-icon-label {
+    font-family: 'Sora', sans-serif;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--cream-dim);
+  }
   /* Cloze "hint" button - hears the full sentence (target word included),
      unlike .speak-btn on a cloze question which deliberately only reads the
      surrounding context. Same round-button family as .speak-btn, just wide
@@ -287,6 +312,15 @@
     -webkit-backdrop-filter: blur(12px);
   }
   .scramble-pill:hover { border-color: var(--label); }
+  /* A placed tile stays in the DOM (see render-quiz.js) instead of being
+     removed from the bank array, so its slot keeps its exact width/height
+     and position - visibility:hidden preserves layout space, unlike
+     display:none, which is what was causing the remaining pills to jump
+     into the gap every time one was placed. */
+  .scramble-pill.placed {
+    visibility: hidden;
+    pointer-events: none;
+  }
 
   .option-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
   .option-btn {
