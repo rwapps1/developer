@@ -1,14 +1,92 @@
 // Achievement toasts, unlocking, round-achievement evaluation, and confetti.
 
 
+  // One-shot canvas sparkle burst around the achievement badge, fired right
+  // as the toast drops in. Deliberately self-contained (no shared particle
+  // module) since this is the only place that needs it. Respects reduced
+  // motion the same way launchConfetti() below does.
+  function launchToastSparkle(canvas) {
+    if (!canvas) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const ctx2d = canvas.getContext('2d');
+    if (!ctx2d) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const colors = ['#FFC163', '#FFD873', '#C9A8FF', '#ffffff'];
+    const originX = rect.width / 2, originY = rect.height / 2;
+    const particles = [];
+    for (let i = 0; i < 18; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.2 + Math.random() * 2.8;
+      particles.push({
+        x: originX, y: originY,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: 2.5 + Math.random() * 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 0, maxLife: 32 + Math.random() * 18
+      });
+    }
+
+    function step() {
+      ctx2d.clearRect(0, 0, rect.width, rect.height);
+      let alive = false;
+      particles.forEach(p => {
+        if (p.life >= p.maxLife) return;
+        alive = true;
+        p.vy += 0.05;
+        p.x += p.vx; p.y += p.vy; p.life++;
+        ctx2d.globalAlpha = Math.max(0, 1 - p.life / p.maxLife);
+        ctx2d.fillStyle = p.color;
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+        ctx2d.fill();
+      });
+      if (alive) requestAnimationFrame(step);
+      else ctx2d.clearRect(0, 0, rect.width, rect.height);
+    }
+    step();
+  }
+
+  // Achievement badge markup: a hexagonal medallion (gradient across the
+  // app's ochre/purple palette) carrying the achievement's own icon, with a
+  // light sheen sweeping across it on unlock. Kept as its own function since
+  // showComingSoonToast/showDailyGoalToast below deliberately keep the
+  // plainer .toast-icon treatment — this fancier badge is reserved for
+  // genuine achievement unlocks.
+  function achievementBadgeHtml(icon, uid) {
+    return `
+      <div class="toast-badge-hex">
+        <canvas class="toast-sparkle-canvas"></canvas>
+        <svg class="badge-hex-svg" viewBox="0 0 100 100">
+          <defs>
+            <linearGradient id="toastHexGradient-${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="var(--ochre)"></stop>
+              <stop offset="100%" stop-color="#8B5CF6"></stop>
+            </linearGradient>
+          </defs>
+          <polygon points="50,4 90,27 90,73 50,96 10,73 10,27" fill="url(#toastHexGradient-${uid})" stroke="rgba(255,255,255,0.4)" stroke-width="2"></polygon>
+          <text x="50" y="63" text-anchor="middle" font-size="42">${icon}</text>
+        </svg>
+        <div class="badge-shine"></div>
+      </div>
+    `;
+  }
+
   function showAchievementToast(id) {
     const def = ACHIEVEMENTS[id];
     if (!def) return;
     const toast = document.createElement('div');
     toast.className = 'achievement-toast';
-    toast.innerHTML = `<div class="toast-icon">${def.icon}</div><div><div class="toast-title">Achievement unlocked</div><div class="toast-name">${esc(def.name)}</div></div>`;
+    toast.innerHTML = `${achievementBadgeHtml(def.icon, id)}<div><div class="toast-title">Achievement unlocked</div><div class="toast-name">${esc(def.name)}</div></div>`;
     document.body.appendChild(toast);
-    requestAnimationFrame(() => { toast.classList.add('show'); });
+    requestAnimationFrame(() => {
+      toast.classList.add('show');
+      launchToastSparkle(toast.querySelector('.toast-sparkle-canvas'));
+    });
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 400);
