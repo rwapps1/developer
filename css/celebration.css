@@ -1,27 +1,15 @@
 /* Round-end celebration, Stream checkpoint, and Level Up screen styling.
    Split from index.html — see palabra-file-split-plan.md. */
 
-  .confetti-container {
+  /* launchConfetti() now draws to a single full-screen canvas with real
+     gravity/sway physics (see achievements.js) instead of one DOM div per
+     piece on a fixed CSS fall — .confetti-container/.confetti-piece and
+     their keyframes are gone, replaced by this one rule. */
+  .confetti-canvas {
     position: fixed;
     top: 0; left: 0;
-    width: 100%; height: 100%;
     pointer-events: none;
-    overflow: hidden;
     z-index: 999;
-  }
-  .confetti-piece {
-    position: absolute;
-    top: -12px;
-    width: 8px;
-    height: 14px;
-    opacity: 0.9;
-    animation-name: confettiFall;
-    animation-timing-function: ease-in;
-    animation-fill-mode: forwards;
-  }
-  @keyframes confettiFall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
   }
 
   /* --- Round-end celebration screen (Perfect / Finished) --- */
@@ -56,6 +44,70 @@
     animation: badgeGlowPulse 1.8s ease-in-out infinite;
   }
   .celebrate-badge-ring.perfect::before { background: radial-gradient(circle, var(--ochre) 0%, transparent 70%); }
+
+  /* Two rotating conic-gradient layers behind the badge, giving the glow
+     actual movement instead of just a pulsing blur. Perfect Round gets a
+     warm ochre/coral swirl; Round Complete (and anything else reusing this
+     ring without .perfect, e.g. the Stream checkpoint) gets a cooler
+     lavender/teal one. */
+  .badge-swirl {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(15px);
+    mix-blend-mode: screen;
+  }
+  .swirl-a {
+    inset: -38px;
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(201,168,255,0.5) 80deg, transparent 170deg,
+      rgba(235,228,252,0.32) 250deg, transparent 340deg, transparent 360deg);
+    animation: swirlSpinCW 9s linear infinite;
+  }
+  .swirl-b {
+    inset: -50px;
+    opacity: 0.6;
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(139,92,246,0.42) 120deg, transparent 220deg,
+      rgba(220,210,250,0.28) 300deg, transparent 360deg);
+    animation: swirlSpinCCW 13s linear infinite;
+  }
+  .celebrate-badge-ring.perfect .swirl-a {
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(255,193,99,0.55) 70deg, transparent 150deg,
+      rgba(232,96,80,0.4) 230deg, transparent 300deg, transparent 360deg);
+    animation-duration: 7s;
+  }
+  .celebrate-badge-ring.perfect .swirl-b {
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(255,216,115,0.5) 100deg, transparent 210deg,
+      rgba(45,212,191,0.32) 290deg, transparent 360deg);
+    animation-duration: 11s;
+  }
+  @keyframes swirlSpinCW  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes swirlSpinCCW { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+
+  /* Radiating "impact" ticks for Round Complete's 🙌 badge only (see
+     renderCelebrate() — omitted entirely for Perfect Round). */
+  .impact-ticks { position: absolute; inset: -46px; pointer-events: none; }
+  .impact-ticks line {
+    stroke: #C9A8FF;
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: 0;
+    transform-origin: center;
+    animation: tickFlash 0.5s ease-out forwards;
+  }
+  .impact-ticks line:nth-child(1) { animation-delay: 0.02s; }
+  .impact-ticks line:nth-child(2) { animation-delay: 0.06s; }
+  .impact-ticks line:nth-child(3) { animation-delay: 0.1s; }
+  .impact-ticks line:nth-child(4) { animation-delay: 0.06s; }
+  .impact-ticks line:nth-child(5) { animation-delay: 0.02s; }
+  @keyframes tickFlash {
+    0%   { opacity: 0; transform: scale(0.5); }
+    40%  { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.35); }
+  }
+
   .celebrate-badge-disc {
     width: 100%;
     height: 100%;
@@ -157,19 +209,43 @@
     opacity: 0.4; filter: blur(2px);
     animation: badgeGlowPulse 1.8s ease-in-out infinite;
   }
-  .levelup-disc {
-    width: 100%; height: 100%; border-radius: 50%;
-    background: conic-gradient(#FFC163, #FF9F4D);
-    display: flex; align-items: center; justify-content: center;
-    position: relative; z-index: 1;
-    box-shadow: 0 0 0 6px rgba(255,255,255,0.04), 0 12px 40px rgba(0,0,0,0.35), 0 0 34px rgba(255,193,99,0.55);
-    animation: badgePopIn 1.1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  /* Was a static conic-gradient disc that just popped/faded in; now an SVG
+     ring that actually draws itself in clockwise (see animateLevelUpRing()
+     in render-quiz.js), landing on the same look this ends at. */
+  .levelup-ring-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+    z-index: 1;
+    filter: drop-shadow(0 0 14px rgba(255,193,99,0.55));
+  }
+  .levelup-ring-fill {
+    fill: none;
+    stroke: var(--ochre);
+    stroke-width: 13;
+    stroke-linecap: round;
   }
   .levelup-disc-inner {
-    width: calc(100% - 12px); height: calc(100% - 12px); border-radius: 50%;
-    background: #1B1030; display: flex; align-items: center; justify-content: center;
+    position: absolute;
+    inset: 19px;
+    border-radius: 50%;
+    background: #1B1030;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1;
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.04), 0 12px 40px rgba(0,0,0,0.35);
+    animation: badgePopIn 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   }
-  .levelup-num { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 46px; color: var(--cream); line-height: 1; }
+  .levelup-num {
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 46px; color: var(--cream); line-height: 1;
+    display: inline-block;
+  }
+  .levelup-num.flip { animation: levelNumPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  @keyframes levelNumPop {
+    0%   { transform: scale(0.7); }
+    60%  { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
   .levelup-headline {
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.01em;
     margin: 0 0 8px; color: var(--ochre);
@@ -188,13 +264,15 @@
 
   @media (prefers-reduced-motion: reduce) {
     .levelup-ring-outer::before,
-    .levelup-disc,
+    .levelup-disc-inner,
+    .levelup-num.flip,
     .levelup-headline,
     .levelup-subline,
     .levelup-screen .tap-hint {
       animation: none !important;
       opacity: 1 !important;
     }
+    .levelup-ring-fill { transition: none !important; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -207,6 +285,7 @@
       opacity: 1 !important;
       transform: none !important;
     }
+    .badge-swirl, .impact-ticks line { animation: none !important; opacity: 0 !important; }
   }
 
   /* --- Achievement toast badge: hexagonal medallion + shine sweep ---
