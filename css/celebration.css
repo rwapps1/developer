@@ -1,13 +1,15 @@
 /* Round-end celebration, Stream checkpoint, and Level Up screen styling.
    Split from index.html — see palabra-file-split-plan.md. */
 
-  /* launchConfetti() now draws to a single full-screen canvas with real
-     gravity/sway physics (see achievements.js) instead of one DOM div per
-     piece on a fixed CSS fall — .confetti-container/.confetti-piece and
-     their keyframes are gone, replaced by this one rule. */
-  .confetti-canvas {
+  /* Generic full-viewport layer for the canvas-particle effects below
+     (confetti shower, streak embers, achievement sparkle burst) — replaces
+     the old DOM-divs confetti-container now that all of these are drawn on
+     canvas instead. Fixed + pointer-events:none so it never blocks taps on
+     whatever screen is underneath it. */
+  .fx-canvas-layer {
     position: fixed;
     top: 0; left: 0;
+    width: 100%; height: 100%;
     pointer-events: none;
     z-index: 999;
   }
@@ -44,64 +46,86 @@
     animation: badgeGlowPulse 1.8s ease-in-out infinite;
   }
   .celebrate-badge-ring.perfect::before { background: radial-gradient(circle, var(--ochre) 0%, transparent 70%); }
+  .celebrate-badge-ring.neutral::before { background: radial-gradient(circle, rgba(220,210,250,0.35) 0%, rgba(220,210,250,0.1) 45%, transparent 72%); }
+  .celebrate-badge-ring.fire::before { background: radial-gradient(circle, rgba(255,138,61,0.45) 0%, rgba(255,138,61,0.14) 45%, transparent 72%); }
 
-  /* Two rotating conic-gradient layers behind the badge, giving the glow
-     actual movement instead of just a pulsing blur. Perfect Round gets a
-     warm ochre/coral swirl; Round Complete (and anything else reusing this
-     ring without .perfect, e.g. the Stream checkpoint) gets a cooler
-     lavender/teal one. */
-  .badge-swirl {
+  /* Rotating conic-gradient swirl layers behind the badge disc — two
+     counter-rotating layers per variant (warm/perfect, neutral/round-
+     complete, fire/streak) blurred and blended with `screen` so they read
+     as soft drifting colour rather than a hard-edged spinning shape. Sit
+     behind celebrate-badge-disc in paint order since neither has an
+     explicit stacking z-index of its own until the disc's z-index:1. */
+  .celebrate-badge-swirl {
     position: absolute;
     border-radius: 50%;
     filter: blur(15px);
     mix-blend-mode: screen;
+    pointer-events: none;
   }
-  .swirl-a {
+  .swirl-perfect-a {
     inset: -38px;
     background: conic-gradient(from 0deg,
-      transparent 0deg, rgba(201,168,255,0.5) 80deg, transparent 170deg,
-      rgba(235,228,252,0.32) 250deg, transparent 340deg, transparent 360deg);
+      transparent 0deg, rgba(245, 183, 61, 0.55) 70deg, transparent 150deg,
+      rgba(232, 96, 80, 0.4) 230deg, transparent 300deg, transparent 360deg);
+    animation: swirlSpinCW 7s linear infinite;
+  }
+  .swirl-perfect-b {
+    inset: -50px;
+    opacity: 0.65;
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(165, 140, 224, 0.5) 100deg, transparent 200deg,
+      rgba(43, 191, 160, 0.35) 260deg, transparent 360deg);
+    animation: swirlSpinCCW 11s linear infinite;
+  }
+  .swirl-neutral-a {
+    inset: -38px;
+    background: conic-gradient(from 0deg,
+      transparent 0deg, rgba(182, 162, 246, 0.5) 80deg, transparent 170deg,
+      rgba(235, 228, 252, 0.32) 250deg, transparent 340deg, transparent 360deg);
     animation: swirlSpinCW 9s linear infinite;
   }
-  .swirl-b {
+  .swirl-neutral-b {
     inset: -50px;
     opacity: 0.6;
     background: conic-gradient(from 0deg,
-      transparent 0deg, rgba(139,92,246,0.42) 120deg, transparent 220deg,
-      rgba(220,210,250,0.28) 300deg, transparent 360deg);
+      transparent 0deg, rgba(108, 60, 233, 0.42) 120deg, transparent 220deg,
+      rgba(220, 210, 250, 0.28) 300deg, transparent 360deg);
     animation: swirlSpinCCW 13s linear infinite;
   }
-  .celebrate-badge-ring.perfect .swirl-a {
+  .swirl-fire-a {
+    inset: -38px;
     background: conic-gradient(from 0deg,
-      transparent 0deg, rgba(255,193,99,0.55) 70deg, transparent 150deg,
-      rgba(232,96,80,0.4) 230deg, transparent 300deg, transparent 360deg);
-    animation-duration: 7s;
+      transparent 0deg, rgba(255, 138, 61, 0.6) 70deg, transparent 150deg,
+      rgba(232, 70, 50, 0.5) 230deg, transparent 320deg, transparent 360deg);
+    animation: swirlSpinCW 4.5s linear infinite;
   }
-  .celebrate-badge-ring.perfect .swirl-b {
+  .swirl-fire-b {
+    inset: -50px;
+    opacity: 0.65;
     background: conic-gradient(from 0deg,
-      transparent 0deg, rgba(255,216,115,0.5) 100deg, transparent 210deg,
-      rgba(45,212,191,0.32) 290deg, transparent 360deg);
-    animation-duration: 11s;
+      transparent 0deg, rgba(255, 196, 61, 0.55) 100deg, transparent 210deg,
+      rgba(214, 50, 30, 0.4) 290deg, transparent 360deg);
+    animation: swirlSpinCCW 6.5s linear infinite;
   }
   @keyframes swirlSpinCW  { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes swirlSpinCCW { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 
-  /* Radiating "impact" ticks for Round Complete's 🙌 badge only (see
-     renderCelebrate() — omitted entirely for Perfect Round). */
+  /* Radiating "impact" ticks that flick outward around the Round Complete
+     badge on entry, like the clap actually landing. Perfect/Streak don't
+     use these — only rendered inside the neutral (Round Complete) badge. */
   .impact-ticks { position: absolute; inset: -46px; pointer-events: none; }
-  .impact-ticks line {
-    stroke: #C9A8FF;
-    stroke-width: 3;
-    stroke-linecap: round;
-    opacity: 0;
-    transform-origin: center;
-    animation: tickFlash 0.5s ease-out forwards;
+  .impact-ticks .tick { opacity: 0; transform-origin: center; }
+  .impact-ticks .tick:nth-child(1) { animation-delay: 0.02s; }
+  .impact-ticks .tick:nth-child(2) { animation-delay: 0.06s; }
+  .impact-ticks .tick:nth-child(3) { animation-delay: 0.1s; }
+  .impact-ticks .tick:nth-child(4) { animation-delay: 0.06s; }
+  .impact-ticks .tick:nth-child(5) { animation-delay: 0.02s; }
+  .celebrate-badge-ring .impact-ticks .tick {
+    animation-name: tickFlash;
+    animation-duration: 0.5s;
+    animation-timing-function: ease-out;
+    animation-fill-mode: forwards;
   }
-  .impact-ticks line:nth-child(1) { animation-delay: 0.02s; }
-  .impact-ticks line:nth-child(2) { animation-delay: 0.06s; }
-  .impact-ticks line:nth-child(3) { animation-delay: 0.1s; }
-  .impact-ticks line:nth-child(4) { animation-delay: 0.06s; }
-  .impact-ticks line:nth-child(5) { animation-delay: 0.02s; }
   @keyframes tickFlash {
     0%   { opacity: 0; transform: scale(0.5); }
     40%  { opacity: 1; transform: scale(1.05); }
@@ -140,6 +164,9 @@
     font-size: 34px;
     letter-spacing: -0.01em;
     margin: 0 0 8px;
+    padding: 0 12px;
+    text-align: center;
+    text-wrap: balance;
     opacity: 0;
     animation: celebrateTextIn 0.5s ease-out 0.15s forwards;
   }
@@ -150,6 +177,8 @@
     font-size: 15px;
     color: var(--cream-dim);
     margin: 0;
+    padding: 0 12px;
+    text-align: center;
     opacity: 0;
     animation: celebrateTextIn 0.5s ease-out 0.26s forwards;
   }
@@ -177,8 +206,9 @@
   }
 
   /* Stream checkpoint — reuses the celebrate badge/headline/subline visuals
-     above, but isn't a whole-screen tap-to-skip like Celebrate is, since it
-     needs two distinct choices (keep going / stop) rather than one. */
+     above (fire variant), but isn't a whole-screen tap-to-skip like
+     Celebrate is, since it needs two distinct choices (keep going / stop)
+     rather than one. */
   .stream-checkpoint-screen { justify-content: center; }
   .checkpoint-actions {
     display: flex;
@@ -193,9 +223,9 @@
 
   /* --- Level Up screen: self-contained, deliberately not reusing the
      celebrate-badge-* classes above even though the composition is
-     similar, since the badge content here is the Level Ring rather than
-     an emoji and needed its own sizing. Kept as its own dedicated block to
-     avoid any specificity bleed between the two. --- */
+     similar, since the badge content here is a self-drawing SVG ring
+     rather than an emoji disc. Kept as its own dedicated block to avoid
+     any specificity bleed between the two. --- */
   .levelup-screen { justify-content: center; cursor: pointer; }
   .levelup-wrap { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; position: relative; z-index: 3; }
   .levelup-ring-outer {
@@ -209,22 +239,26 @@
     opacity: 0.4; filter: blur(2px);
     animation: badgeGlowPulse 1.8s ease-in-out infinite;
   }
-  /* Was a static conic-gradient disc that just popped/faded in; now an SVG
-     ring that actually draws itself in clockwise (see animateLevelUpRing()
-     in render-quiz.js), landing on the same look this ends at. */
+  /* The ring itself: drawn via stroke-dasharray/-dashoffset, animated by
+     JS in animateLevelRing() (render-quiz.js) rather than a CSS
+     @keyframes, since it needs to start from a JS-known offset and land
+     exactly when the number flips. rotate(-90deg) so the draw starts at
+     12 o'clock instead of 3 o'clock. */
   .levelup-ring-svg {
     position: absolute;
     inset: 0;
-    width: 100%; height: 100%;
+    width: 148px;
+    height: 148px;
     transform: rotate(-90deg);
     z-index: 1;
-    filter: drop-shadow(0 0 14px rgba(255,193,99,0.55));
   }
   .levelup-ring-fill {
     fill: none;
-    stroke: var(--ochre);
+    stroke: var(--ochre-light, var(--ochre));
     stroke-width: 13;
     stroke-linecap: round;
+    stroke-dasharray: 376.99;
+    stroke-dashoffset: 376.99;
   }
   .levelup-disc-inner {
     position: absolute;
@@ -232,27 +266,23 @@
     border-radius: 50%;
     background: #1B1030;
     display: flex; align-items: center; justify-content: center;
-    z-index: 1;
     box-shadow: 0 0 0 6px rgba(255,255,255,0.04), 0 12px 40px rgba(0,0,0,0.35);
-    animation: badgePopIn 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
   }
-  .levelup-num {
-    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 46px; color: var(--cream); line-height: 1;
-    display: inline-block;
-  }
-  .levelup-num.flip { animation: levelNumPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
-  @keyframes levelNumPop {
+  .levelup-num { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 46px; color: var(--cream); line-height: 1; font-variant-numeric: tabular-nums; }
+  .levelup-num.flip { animation: levelupNumberPop 0.4s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes levelupNumberPop {
     0%   { transform: scale(0.7); }
     60%  { transform: scale(1.25); }
     100% { transform: scale(1); }
   }
   .levelup-headline {
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 34px; letter-spacing: -0.01em;
-    margin: 0 0 8px; color: var(--ochre);
+    margin: 0 0 8px; padding: 0 12px; text-align: center; text-wrap: balance; color: var(--ochre);
     opacity: 0; animation: celebrateTextIn 0.5s ease-out 0.55s forwards;
   }
   .levelup-subline {
     font-family: 'Inter', sans-serif; font-size: 15px; color: var(--cream-dim); margin: 0;
+    padding: 0 12px; text-align: center;
     opacity: 0; animation: celebrateTextIn 0.5s ease-out 0.7s forwards;
   }
   .levelup-screen .tap-hint {
@@ -264,56 +294,26 @@
 
   @media (prefers-reduced-motion: reduce) {
     .levelup-ring-outer::before,
-    .levelup-disc-inner,
-    .levelup-num.flip,
     .levelup-headline,
     .levelup-subline,
     .levelup-screen .tap-hint {
       animation: none !important;
       opacity: 1 !important;
     }
+    .levelup-num.flip { animation: none !important; }
     .levelup-ring-fill { transition: none !important; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .celebrate-badge-ring::before,
+    .celebrate-badge-swirl,
     .celebrate-badge-disc,
     .celebrate-headline,
     .celebrate-subline,
-    .celebrate-screen .tap-hint {
+    .celebrate-screen .tap-hint,
+    .impact-ticks .tick {
       animation: none !important;
       opacity: 1 !important;
       transform: none !important;
     }
-    .badge-swirl, .impact-ticks line { animation: none !important; opacity: 0 !important; }
-  }
-
-  /* --- Achievement toast badge: hexagonal medallion + shine sweep ---
-     Only styles the new inner badge markup (see achievementBadgeHtml() in
-     achievements.js) — deliberately doesn't touch .achievement-toast /
-     .toast-title / .toast-name, which live elsewhere and already handle
-     the toast shell's position and .show slide animation. */
-  .toast-badge-hex {
-    position: relative;
-    width: 54px;
-    height: 54px;
-    flex: 0 0 auto;
-  }
-  .badge-hex-svg { width: 54px; height: 54px; display: block; overflow: visible; }
-  .toast-sparkle-canvas { position: absolute; inset: -30px; pointer-events: none; }
-  .badge-shine {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.6) 48%, transparent 66%);
-    transform: translateX(-130%);
-    mix-blend-mode: screen;
-    pointer-events: none;
-  }
-  .achievement-toast.show .badge-shine { animation: toastShineSweep 1.1s ease-out 0.2s; }
-  @keyframes toastShineSweep {
-    0%   { transform: translateX(-130%); }
-    100% { transform: translateX(130%); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .achievement-toast.show .badge-shine { animation: none !important; opacity: 0; }
   }
