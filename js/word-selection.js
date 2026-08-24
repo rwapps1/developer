@@ -36,9 +36,30 @@
   // that, once this slot's format is known, word selection prefers a word
   // whose SRS box already meets that format's STREAM_FORMAT_MIN_BOX (see
   // config.js) — so harder formats preferentially land on well-known words.
-  // If nothing in the pool meets that bar yet (e.g. a brand-new account),
-  // it falls straight back to the unrestricted pool — the format still gets
-  // asked on schedule, just without a well-matched word behind it that time.
+  //
+  // If nothing meets that bar yet, selection relaxes in stages rather than
+  // dropping straight to the fully unrestricted pool:
+  //   1. Box-preference met (+ has a sentence, for Cloze/Scramble).
+  //   2. Box preference relaxed, but still a word the player has been shown
+  //      at least once before (has a wordStats entry, any box) - this is
+  //      the important middle step. Reaching box 4-5 takes 5 correct
+  //      answers spaced over weeks per SRS_INTERVALS_DAYS, so "no word
+  //      meets the box preference yet" is the NORMAL state for a large
+  //      chunk of any account's early life, not a rare edge case - without
+  //      this step, the type/cloze/scramble fallback was landing on a word
+  //      with literally zero prior exposure disturbingly often (confirmed
+  //      via simulation: ~1 in 5 hard-format questions in a new account's
+  //      first 300 questions), because getWeight() itself already ranks
+  //      never-seen words ABOVE seen-but-not-yet-due ones - exactly the
+  //      "no foothold" problem this whole feature exists to prevent.
+  //   3. Only for Cloze/Scramble, which need real sentence data to work at
+  //      all regardless of exposure: any word with a sentence, even one
+  //      never seen before - reachable only in the first few questions of
+  //      a brand-new account's very first stream, before anything at all
+  //      has been answered yet.
+  //   4. True last resort (mc/truefalse/audio/type on an account with zero
+  //      answered words anywhere yet): the fully unrestricted pool, same as
+  //      the app's behaviour before this feature existed.
   function buildStreamBatch(pairs, count, avoidKey) {
     const batch = [];
     let lastKey = avoidKey || null;
@@ -52,27 +73,22 @@
       const needsSentence = format === 'cloze' || format === 'scramble';
       let candidatePairs = pairs;
       if (typeof minBox === 'number' || needsSentence) {
-        const eligible = pairs.filter(p => {
-          if (typeof minBox === 'number') {
-            const stats = state.progress.wordStats[wordKey(p)];
-            if (!stats || stats.box < minBox) return false;
-          }
-          if (needsSentence && !findClozeBlank(p)) return false;
-          return true;
-        });
-        if (eligible.length > 0) {
-          candidatePairs = eligible;
-        } else if (needsSentence) {
-          // No word both meets the box preference AND has a sentence yet -
-          // relax the box preference but keep the sentence requirement, so
-          // Cloze/Scramble still get a real sentence to work with rather
-          // than silently collapsing to 'type' just because no sufficiently-
-          // known word happens to have one yet. Only genuinely falls back to
-          // the fully unrestricted pool (and from there to 'type' below) if
-          // truly no word anywhere has a usable sentence.
-          const sentenceOnly = pairs.filter(p => findClozeBlank(p));
-          if (sentenceOnly.length > 0) candidatePairs = sentenceOnly;
+        const hasSentence = p => !needsSentence || findClozeBlank(p);
+        const meetsBox = p => {
+          if (typeof minBox !== 'number') return true;
+          const stats = state.progress.wordStats[wordKey(p)];
+          return !!stats && stats.box >= minBox;
+        };
+        const everSeen = p => !!state.progress.wordStats[wordKey(p)];
+
+        let tier = pairs.filter(p => meetsBox(p) && hasSentence(p));
+        if (tier.length === 0) {
+          tier = pairs.filter(p => everSeen(p) && hasSentence(p));
         }
+        if (tier.length === 0 && needsSentence) {
+          tier = pairs.filter(hasSentence);
+        }
+        if (tier.length > 0) candidatePairs = tier;
       }
 
       const p = weightedPickOne(candidatePairs, getWeight, lastKey);
