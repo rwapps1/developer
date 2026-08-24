@@ -55,6 +55,7 @@
     streamSessionStreak: 0,      // correct-in-a-row within THIS stream session only (Locked In) — same session-only pattern as taStreak
     streamSessionCheckpoints: 0, // checkpoints reached in one continuous sitting, without stopping (Marathon Session)
     streamFormatsCorrect: {},    // which formats (mc/audio/type/cloze) have had a correct answer this session (Triple Threat only requires mc/audio/type)
+    streamFormatBag: [],         // shuffled queue of Stream formats still to be dealt this session - refilled with a fresh shuffle of all 6 formats whenever it empties (see buildStreamBatch in word-selection.js), so every 6 questions covers all 6 formats but in unpredictable order rather than a fixed rotation. Reset at the start of each new stream.
     tfClaimEn: '',        // the English text shown as the True/False claim for the current question
     tfIsTrue: false,      // whether that claim is actually correct
     tfSessionStreak: 0,   // consecutive correct True/False answers within this stream session — resets on a wrong True/False answer only (Snap Judgment)

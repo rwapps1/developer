@@ -12,7 +12,7 @@ const WORDS_FILE = './words.xlsx';
 // account ad-funnel page for first-time visitors, not part of the
 // installed offline app shell, so it doesn't need precaching or offline
 // support the way the main app does.
-const CACHE_NAME = 'palabra-cache-v7';
+const CACHE_NAME = 'palabra-cache-v8';
 const ASSETS_TO_CACHE = [
   './',
   APP_HTML,

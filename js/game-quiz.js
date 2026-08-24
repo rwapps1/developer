@@ -478,7 +478,7 @@
       if (state.questions.length - (state.index + 1) < 5) {
         const lastKey = wordKey(state.questions[state.questions.length - 1]);
         state.questions = state.questions.concat(
-          buildStreamBatch(activePairs(), 20, lastKey, state.questions.length)
+          buildStreamBatch(activePairs(), 20, lastKey)
         );
       }
       if (state.streamCheckpointCount >= STREAM_CHECKPOINT_SIZE) {
@@ -663,7 +663,8 @@
   function startStream() {
     state.activeCategory = null; // main pool only, same as Daily Double
     const pool = activePairs();
-    state.questions = buildStreamBatch(pool, 20, null, 0);
+    state.streamFormatBag = []; // fresh shuffle bag for this session - see buildStreamBatch
+    state.questions = buildStreamBatch(pool, 20, null);
     state.index = 0;
     state.results = [];
     state.input = '';

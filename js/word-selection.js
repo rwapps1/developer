@@ -17,19 +17,67 @@
   }
 
   // Builds `count` more Stream questions, each carrying its own answer
-  // format (mc / audio / type) so the format varies question to question
-  // instead of being fixed for the whole round like normal Quiz. Uses the
-  // same weighted due/never-seen selection as everything else (getWeight),
-  // sampling WITH replacement (via weightedPickOne) since a continuous
-  // stream can't rely on a finite without-replacement pool the way a
-  // fixed-length round does.
-  function buildStreamBatch(pairs, count, avoidKey, startPosition) {
+  // format (mc/audio/type/cloze/truefalse/scramble) so the format varies
+  // question to question instead of being fixed for the whole round like
+  // normal Quiz.
+  //
+  // Format is dealt from state.streamFormatBag — a shuffled "bag" holding
+  // whichever of the 6 STREAM_FORMATS haven't been dealt yet this cycle,
+  // refilled with a fresh shuffle of all 6 the moment it runs empty (see
+  // state.js). That guarantees every 6 questions still contains every
+  // format exactly once — the same variety guarantee Stream has always
+  // had — but in an unpredictable order each cycle rather than a fixed
+  // repeating pattern, so a player can't tell what's coming next.
+  //
+  // Word selection still uses the same weighted due/never-seen priority as
+  // everything else (getWeight), sampling WITH replacement (via
+  // weightedPickOne) since a continuous stream can't rely on a finite
+  // without-replacement pool the way a fixed-length round does. On top of
+  // that, once this slot's format is known, word selection prefers a word
+  // whose SRS box already meets that format's STREAM_FORMAT_MIN_BOX (see
+  // config.js) — so harder formats preferentially land on well-known words.
+  // If nothing in the pool meets that bar yet (e.g. a brand-new account),
+  // it falls straight back to the unrestricted pool — the format still gets
+  // asked on schedule, just without a well-matched word behind it that time.
+  function buildStreamBatch(pairs, count, avoidKey) {
     const batch = [];
     let lastKey = avoidKey || null;
     for (let i = 0; i < count; i++) {
-      const p = weightedPickOne(pairs, getWeight, lastKey);
+      if (state.streamFormatBag.length === 0) {
+        state.streamFormatBag = shuffle(STREAM_FORMATS);
+      }
+      let format = state.streamFormatBag.shift();
+
+      const minBox = STREAM_FORMAT_MIN_BOX[format];
+      const needsSentence = format === 'cloze' || format === 'scramble';
+      let candidatePairs = pairs;
+      if (typeof minBox === 'number' || needsSentence) {
+        const eligible = pairs.filter(p => {
+          if (typeof minBox === 'number') {
+            const stats = state.progress.wordStats[wordKey(p)];
+            if (!stats || stats.box < minBox) return false;
+          }
+          if (needsSentence && !findClozeBlank(p)) return false;
+          return true;
+        });
+        if (eligible.length > 0) {
+          candidatePairs = eligible;
+        } else if (needsSentence) {
+          // No word both meets the box preference AND has a sentence yet -
+          // relax the box preference but keep the sentence requirement, so
+          // Cloze/Scramble still get a real sentence to work with rather
+          // than silently collapsing to 'type' just because no sufficiently-
+          // known word happens to have one yet. Only genuinely falls back to
+          // the fully unrestricted pool (and from there to 'type' below) if
+          // truly no word anywhere has a usable sentence.
+          const sentenceOnly = pairs.filter(p => findClozeBlank(p));
+          if (sentenceOnly.length > 0) candidatePairs = sentenceOnly;
+        }
+      }
+
+      const p = weightedPickOne(candidatePairs, getWeight, lastKey);
       lastKey = wordKey(p);
-      let format = STREAM_FORMATS[(startPosition + i) % STREAM_FORMATS.length];
+
       // Cloze only works for words that actually have sentence data -
       // most won't yet. Falling back to typed translation keeps the
       // rotation's cadence intact instead of skipping this word entirely.
@@ -39,13 +87,10 @@
       // sentence exists - the actual scramble logic is unrelated to
       // blank-finding). Same type fallback for words without one.
       if (format === 'scramble' && !findClozeBlank(p)) format = 'type';
+
       batch.push({
         ...p,
         direction: Math.random() < 0.5 ? 'es-en' : 'en-es',
-        // Cycles on a running position (not i, which resets every batch)
-        // so format rotation stays deliberate across batch top-ups instead
-        // of risking two of the same format landing back-to-back at a
-        // batch boundary.
         format,
       });
     }

@@ -44,6 +44,29 @@
   const STREAM_CHECKPOINT_SIZE = 20; // how many stream questions between "keep going / stop" checkpoints
   const STREAM_FORMATS = ['mc', 'audio', 'type', 'cloze', 'truefalse', 'scramble'];
 
+  // Box-aware Stream format selection ---------------------------------------
+  // For each Stream format, the lowest SRS box (0-5 — see wordStats/ws.box in
+  // progress-xp.js) a word should ideally have reached before being tested
+  // with that format, so the harder formats preferentially land on words
+  // that are actually well known rather than ones still being learned.
+  // mc/truefalse have no entry here on purpose: any word suits them fine
+  // regardless of box, so word selection for those two stays unrestricted,
+  // same as it's always been.
+  //
+  // This does NOT change which formats appear, or how often — buildStreamBatch()
+  // in word-selection.js still deals all 6 formats every cycle (in a
+  // shuffled order) regardless of a player's box distribution. This table
+  // only influences WHICH WORD fills a given format slot, and always falls
+  // back to the unrestricted pool when nothing yet meets the preferred box
+  // (e.g. a brand-new account) — so every format still shows up on schedule,
+  // just without the box-matching benefit that one time.
+  const STREAM_FORMAT_MIN_BOX = {
+    audio: 2,
+    type: 4,
+    cloze: 4,
+    scramble: 4,
+  };
+
   const ACHIEVEMENTS = {
     firstRound:  { name: 'First Steps',    desc: 'Complete your first round',              icon: '👟' },
     perfectRound:{ name: 'Perfect Round',  desc: 'Score 100% in a round',                  icon: '💯' },
@@ -60,7 +83,7 @@
     timeAttack50: { name: 'Lightning Round',desc: 'Score 50 in a single Time Attack round',  icon: '🌪️' },
     timeAttack100:{ name: 'Blur',           desc: 'Score 100 in a single Time Attack round', icon: '👑' },
     memoryFirstWin: { name: 'Board Cleared', desc: 'Complete your first Memory Match board',        icon: '🧩' },
-    memoryPerfect:  { name: 'Perfect Recall',desc: 'Beat your own best on a grid size you\u2019ve played before',   icon: '🧠' },
+    memoryPerfect:  { name: 'Perfect Recall',desc: 'Beat your own best on a grid size you’ve played before',   icon: '🧠' },
     memoryFast:     { name: 'Quick Fingers', desc: 'Clear a 12-pair board in under 90 seconds',     icon: '💨' },
     timeAttackNewBest:    { name: 'Personal Best',  desc: 'Beat your own Time Attack high score',            icon: '🏅' },
     timeAttackFlawless:   { name: 'Flawless',       desc: 'No wrong answers in a Time Attack round',         icon: '✨' },
