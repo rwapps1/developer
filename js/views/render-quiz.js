@@ -1,6 +1,46 @@
 // Renders Quiz/Sentences/Categories setup and play screens, the shared
 // Celebrate/Stream-checkpoint/Level-up screens, and the round results screen.
+// Also defines renderQuitConfirmOverlay(), shared by all 4 game modes'
+// play screens (see game-timeattack.js/game-memory.js/game-conjugate.js's
+// render functions) - defined here since render-quiz.js loads first among
+// the render-*.js files (see index.html's load order), so it's available
+// to the other three by the time they run.
 
+
+  // Shared quit-confirm overlay markup, appended to a play screen's own
+  // innerHTML when state.quitConfirmMode matches that screen. Replaces
+  // window.confirm() - see game-quiz.js's showQuitConfirm/
+  // cancelQuitConfirm/confirmQuitCurrentMode and the QUIT_MESSAGES table
+  // there for the per-mode message text. Call this AFTER setting
+  // app.innerHTML in each mode's play-screen render function (appending to
+  // innerHTML rather than replacing it, so it doesn't clobber the screen
+  // underneath), then wire the two buttons the same way every other
+  // rendered button is wired.
+  function renderQuitConfirmOverlay(mode) {
+    if (state.quitConfirmMode !== mode) return;
+    const app = document.getElementById('app');
+    const message = QUIT_MESSAGES[mode] ? QUIT_MESSAGES[mode]() : 'Quit this round?';
+    app.insertAdjacentHTML('beforeend', `
+      <div class="quit-confirm-overlay" id="quit-confirm-overlay">
+        <div class="quit-confirm-panel">
+          <div class="quit-confirm-title">Quit?</div>
+          <div class="quit-confirm-message">${esc(message)}</div>
+          <div class="quit-confirm-actions">
+            <button id="quit-confirm-yes-btn" class="btn-primary">Quit</button>
+            <button id="quit-confirm-cancel-btn" class="btn-secondary">Keep playing</button>
+          </div>
+        </div>
+      </div>
+    `);
+    document.getElementById('quit-confirm-yes-btn').addEventListener('click', confirmQuitCurrentMode);
+    document.getElementById('quit-confirm-cancel-btn').addEventListener('click', cancelQuitConfirm);
+    // Tapping the dimmed backdrop itself (not the panel) is treated the
+    // same as Cancel - standard modal convention, and gives a second,
+    // discoverable way to dismiss it beyond the button/hardware-back.
+    document.getElementById('quit-confirm-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'quit-confirm-overlay') cancelQuitConfirm();
+    });
+  }
 
   function renderQuizSetup() {
     const app = document.getElementById('app');
@@ -630,6 +670,8 @@
     }
 
     document.getElementById('quiz-quit-btn').addEventListener('click', quitQuiz);
+
+    renderQuitConfirmOverlay('quiz');
   }
 
   // Brief celebratory interstitial shown between a round ending and its

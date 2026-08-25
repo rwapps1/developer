@@ -189,6 +189,8 @@
     }
 
     document.getElementById('conjugate-quit-btn').addEventListener('click', quitConjugateRound);
+
+    renderQuitConfirmOverlay('conjugate');
   }
 
   function renderConjugateResult() {

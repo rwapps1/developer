@@ -83,6 +83,8 @@
     });
 
     document.getElementById('memory-quit-btn').addEventListener('click', quitMemoryMatch);
+
+    renderQuitConfirmOverlay('memory-play');
   }
 
   function renderMemoryResult() {

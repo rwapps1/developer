@@ -124,6 +124,8 @@
     }
 
     document.getElementById('ta-quit-btn').addEventListener('click', quitTimeAttack);
+
+    renderQuitConfirmOverlay('timeattack');
   }
 
   function renderTimeAttackResult() {
