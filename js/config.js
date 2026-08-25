@@ -67,6 +67,13 @@
     scramble: 4,
   };
 
+  // How many of the most-recently-asked words (any format) buildStreamBatch()
+  // tries to avoid repeating, within whichever box-preference tier it ends
+  // up drawing from - see word-selection.js. Prevents a word that happens
+  // to be one of only a few (sometimes the only one) meeting a format's
+  // preferred box from being handed out over and over within a stream.
+  const STREAM_RECENT_WORD_WINDOW = 10;
+
   const ACHIEVEMENTS = {
     firstRound:  { name: 'First Steps',    desc: 'Complete your first round',              icon: '👟' },
     perfectRound:{ name: 'Perfect Round',  desc: 'Score 100% in a round',                  icon: '💯' },

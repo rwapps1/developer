@@ -37,29 +37,32 @@
   // whose SRS box already meets that format's STREAM_FORMAT_MIN_BOX (see
   // config.js) — so harder formats preferentially land on well-known words.
   //
-  // If nothing meets that bar yet, selection relaxes in stages rather than
-  // dropping straight to the fully unrestricted pool:
+  // If nothing meets that bar yet, selection relaxes through progressively
+  // broader tiers rather than dropping straight to the fully unrestricted
+  // pool:
   //   1. Box-preference met (+ has a sentence, for Cloze/Scramble).
   //   2. Box preference relaxed, but still a word the player has been shown
   //      at least once before (has a wordStats entry, any box) - this is
   //      the important middle step. Reaching box 4-5 takes 5 correct
   //      answers spaced over weeks per SRS_INTERVALS_DAYS, so "no word
   //      meets the box preference yet" is the NORMAL state for a large
-  //      chunk of any account's early life, not a rare edge case - without
-  //      this step, the type/cloze/scramble fallback was landing on a word
-  //      with literally zero prior exposure disturbingly often (confirmed
-  //      via simulation: ~1 in 5 hard-format questions in a new account's
-  //      first 300 questions), because getWeight() itself already ranks
-  //      never-seen words ABOVE seen-but-not-yet-due ones - exactly the
-  //      "no foothold" problem this whole feature exists to prevent.
+  //      chunk of any account's early life, not a rare edge case.
   //   3. Only for Cloze/Scramble, which need real sentence data to work at
   //      all regardless of exposure: any word with a sentence, even one
-  //      never seen before - reachable only in the first few questions of
-  //      a brand-new account's very first stream, before anything at all
-  //      has been answered yet.
-  //   4. True last resort (mc/truefalse/audio/type on an account with zero
-  //      answered words anywhere yet): the fully unrestricted pool, same as
-  //      the app's behaviour before this feature existed.
+  //      never seen before.
+  //   4. True last resort: the fully unrestricted pool, same as the app's
+  //      behaviour before this feature existed.
+  //
+  // Crucially, within whichever of these tiers ends up used, selection
+  // ALSO avoids the last several words already asked in this stream
+  // (state.streamRecentWordKeys), moving to a broader tier if the current
+  // one has nothing fresh left - rather than treating "this tier has at
+  // least one word in it" as good enough. Without this, an account with
+  // only one or two words that happen to qualify for a format's preferred
+  // box (very common early on, and easy to hit deliberately on a test
+  // account) had that same tiny handful of words - sometimes literally
+  // one word - handed out over and over across a stream, which is worse
+  // for a learner than a slightly loose difficulty match.
   function buildStreamBatch(pairs, count, avoidKey) {
     const batch = [];
     let lastKey = avoidKey || null;
@@ -71,28 +74,46 @@
 
       const minBox = STREAM_FORMAT_MIN_BOX[format];
       const needsSentence = format === 'cloze' || format === 'scramble';
-      let candidatePairs = pairs;
-      if (typeof minBox === 'number' || needsSentence) {
-        const hasSentence = p => !needsSentence || findClozeBlank(p);
-        const meetsBox = p => {
-          if (typeof minBox !== 'number') return true;
-          const stats = state.progress.wordStats[wordKey(p)];
-          return !!stats && stats.box >= minBox;
-        };
-        const everSeen = p => !!state.progress.wordStats[wordKey(p)];
+      const hasSentence = p => !needsSentence || findClozeBlank(p);
+      const meetsBox = p => {
+        if (typeof minBox !== 'number') return true;
+        const stats = state.progress.wordStats[wordKey(p)];
+        return !!stats && stats.box >= minBox;
+      };
+      const everSeen = p => !!state.progress.wordStats[wordKey(p)];
 
-        let tier = pairs.filter(p => meetsBox(p) && hasSentence(p));
-        if (tier.length === 0) {
-          tier = pairs.filter(p => everSeen(p) && hasSentence(p));
+      // Progressively broader candidate tiers, most-ideal first. Always
+      // ends with the fully unrestricted pool, so something is always
+      // available.
+      const tiers = [];
+      if (typeof minBox === 'number') tiers.push(pairs.filter(p => meetsBox(p) && hasSentence(p)));
+      if (typeof minBox === 'number' || needsSentence) tiers.push(pairs.filter(p => everSeen(p) && hasSentence(p)));
+      if (needsSentence) tiers.push(pairs.filter(hasSentence));
+      tiers.push(pairs);
+
+      const recent = state.streamRecentWordKeys;
+      let candidatePairs = null;
+      for (const tier of tiers) {
+        if (tier.length === 0) continue;
+        const fresh = tier.filter(t => !recent.includes(wordKey(t)));
+        if (fresh.length > 0) { candidatePairs = fresh; break; }
+      }
+      if (candidatePairs === null) {
+        // Nothing anywhere is "fresh" (only plausible with a tiny pool or
+        // an extremely narrow tier) - fall back to the broadest non-empty
+        // tier rather than the narrowest, to maximise variety even though
+        // a repeat is unavoidable this once.
+        for (let idx = tiers.length - 1; idx >= 0; idx--) {
+          if (tiers[idx].length > 0) { candidatePairs = tiers[idx]; break; }
         }
-        if (tier.length === 0 && needsSentence) {
-          tier = pairs.filter(hasSentence);
-        }
-        if (tier.length > 0) candidatePairs = tier;
       }
 
       const p = weightedPickOne(candidatePairs, getWeight, lastKey);
       lastKey = wordKey(p);
+      state.streamRecentWordKeys.push(lastKey);
+      if (state.streamRecentWordKeys.length > STREAM_RECENT_WORD_WINDOW) {
+        state.streamRecentWordKeys.shift();
+      }
 
       // Cloze only works for words that actually have sentence data -
       // most won't yet. Falling back to typed translation keeps the

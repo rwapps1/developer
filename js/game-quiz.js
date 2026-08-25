@@ -772,6 +772,7 @@
     state.activeCategory = null; // main pool only, same as Daily Double
     const pool = activePairs();
     state.streamFormatBag = []; // fresh shuffle bag for this session - see buildStreamBatch
+    state.streamRecentWordKeys = []; // fresh recent-word window for this session - see buildStreamBatch
     state.questions = buildStreamBatch(pool, 20, null);
     state.index = 0;
     state.results = [];
