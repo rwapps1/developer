@@ -232,44 +232,59 @@
     if (BACK_QUIT_HANDLERS[screen]) {
       // The quit-confirm dialog is an in-app overlay (state.quitConfirmMode
       // + a render()ed panel - see game-quiz.js), not a native confirm().
-      // That fixes the original "quit, cancel, quit again" bug: a native
+      // That fixes the ORIGINAL "quit, cancel, quit again" bug: a native
       // dialog sits outside the app's own DOM/history, so a hardware back
       // press while it was open got handled by the WebView/OS chrome
-      // directly and never reached this listener at all - this code simply
-      // never ran on the press that exited. An in-app overlay is just
-      // ordinary render() state, so every back press against it now goes
-      // through this same, single code path.
+      // directly and never reached this listener at all.
       //
-      // Opening the overlay from inside a popstate handler still can't
-      // safely pushState() - that's the reactive-push-inside-popstate
-      // pattern this file exists to avoid (no direct gesture behind it,
-      // so Chrome can silently skip the entry on a later back press,
-      // which is exactly what produced the ORIGINAL results-screen bug).
-      // So instead of pushing a new entry, a hardware back press
-      // repurposes the current entry via replaceState() to represent
-      // "overlay open", and there is deliberately no further in-app entry
-      // beyond that for a second press to land on:
-      //   - 1st back press on the play screen: opens the overlay
-      //     (replaceState, no new entry).
-      //   - back press while the overlay is open: treated as a genuine
-      //     "I want out" signal, same as tapping the overlay's own Quit
-      //     button - runs the real quit action rather than re-showing the
-      //     same confirmation a second time or falling through to exiting
-      //     the app/tab unexpectedly.
-      // Tapping the on-screen Quit button is unaffected by any of this -
-      // that path (showQuitConfirm called directly, not via popstate)
-      // still pushes a real, trusted entry the normal way, so back after
-      // tapping Quit correctly cancels-and-stays, exactly as before.
+      // Confirmed live (2026-08) that the first attempt at this branch
+      // introduced a WORSE bug: it used history.replaceState() to mark
+      // "overlay open" on the current entry, on both the opening press and
+      // (originally) the cancelling press. replaceState() doesn't create a
+      // new entry, but it does overwrite whatever was already sitting at
+      // that position - and the entry sitting there by the time a back
+      // press reaches this branch is never one of ours, it's the real
+      // entry the browser just walked back to (the previous site, or the
+      // app's own earlier screen). A couple of replaceState() calls in a
+      // row was silently eating through genuine prior history, and once
+      // there was nothing legitimate left underneath, the next back press
+      // had nowhere to land and fell through to actually exiting - which
+      // is exactly the symptom reported (repeated back presses eventually
+      // left the site, in both a normal tab and Incognito).
+      //
+      // Fix: never call pushState() OR replaceState() anywhere in this
+      // branch. The overlay's open/closed state lives ENTIRELY in
+      // state.quitConfirmMode (plain in-memory app state, re-rendered on
+      // every popstate the normal way) - it never needs its own history
+      // entry, open or closed, because it isn't a distinct navigable
+      // screen, just a transient UI layer on top of the current one.
+      //   - Opening (back press, overlay not yet open): the browser has
+      //     already moved one entry back for real. Restore it with
+      //     forward() - same untouched-re-occupy pattern as the swallow-
+      //     screen branch above - then just set the in-memory flag and
+      //     render(). Nothing in history is created OR overwritten.
+      //   - Cancelling (back press, overlay already open): identical -
+      //     restore the entry with forward(), clear the flag, render().
+      //     The entry underneath was never touched by either press, so
+      //     however many times this cycles, real history stays intact.
+      // Tapping the on-screen Quit button is unaffected - that path calls
+      // showQuitConfirm() directly (not via popstate), so its render() goes
+      // through the normal non-reacting path and legitimately pushes a
+      // real, trusted entry, exactly as before.
       if (state.quitConfirmMode === screen) {
-        confirmQuitCurrentMode();
-        navDepth = landedDepth;
-        return;
+        state.quitConfirmMode = null;
+      } else {
+        state.quitConfirmMode = screen;
       }
-      state.quitConfirmMode = screen;
+      // reactingToPopstate=true makes syncBackHistory() (called inside
+      // render()) take its no-op path - state.screen isn't changing, only
+      // the in-memory overlay flag, so there is nothing to push or replace
+      // in history for this render() at all.
       reactingToPopstate = true;
       render();
       reactingToPopstate = false;
-      history.replaceState({ navDepth }, '');
+      navDepth += 1;
+      ownNavigation(1);
       return;
     }
     const backBtn = document.getElementById('back-btn');
