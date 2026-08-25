@@ -611,3 +611,68 @@
     #app-loading .loader-sweep,
     #app-loading .loader-caption .dots span { animation: none !important; }
   }
+
+  /* Quit-confirm overlay — shared across all 4 game modes (Quiz/Sentences/
+     Stream, Time Attack, Memory Match, Conjugate). Replaces window.confirm()
+     — see game-quiz.js's showQuitConfirm/cancelQuitConfirm/
+     confirmQuitCurrentMode and navigation.js's BACK_QUIT_HANDLERS handling
+     for why. Deliberately mirrors .menu-overlay/.menu-dropdown's layering
+     (dimmed full-screen backdrop + a floating panel) rather than introducing
+     a new visual pattern, but with an actual darkened backdrop since this
+     needs to read as a blocking modal, not a dismissible dropdown. */
+  .quit-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(8,5,16,0.68);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    animation: quit-confirm-fade-in 0.15s ease-out;
+  }
+  @keyframes quit-confirm-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .quit-confirm-panel {
+    width: 100%;
+    max-width: 340px;
+    background: rgba(24,16,40,0.96);
+    border: 1px solid var(--outline);
+    border-radius: 22px;
+    padding: 24px 22px 20px;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 20px 48px rgba(0,0,0,0.5);
+    text-align: center;
+    animation: quit-confirm-pop-in 0.18s cubic-bezier(0.2,0.9,0.3,1.2);
+  }
+  @keyframes quit-confirm-pop-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .quit-confirm-title {
+    font-family: 'Sora', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--cream);
+    margin-bottom: 8px;
+  }
+  .quit-confirm-message {
+    color: var(--cream-dim);
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+  }
+  .quit-confirm-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .quit-confirm-actions .btn-primary {
+    background: var(--red, #FF4D6D);
+    color: #fff;
+  }
