@@ -48,6 +48,97 @@
   let ignoreNextPopstate = false; // set right before a programmatic history.back()/go() we don't want to react to
   let reactingToPopstate = false; // true only while synchronously re-rendering in direct reaction to a real back press
 
+  // True while a forward()/go() *we* issued (not the user) hasn't finished
+  // landing yet. forward()/go() are asynchronous - the popstate they cause
+  // doesn't fire synchronously, so there's a real window between "we called
+  // it" and "it actually resolved" during which the app is still usable. If
+  // a genuine user gesture triggers syncBackHistory() -> pushState() inside
+  // that window, the two navigations race: depending on timing, our
+  // in-flight forward() can resolve *after* the fresh pushState(), silently
+  // reordering the stack. That race is what produced the confirmed bug
+  // where a second "Quit" attempt (after cancelling the first) sent the
+  // user out of the app instead of showing the confirm dialog again -
+  // ignoreNextPopstate + forward() from the cancelled attempt was still
+  // in flight when the second attempt's real state change tried to push.
+  // Fix: any push that would happen while one of our own navigations is
+  // still settling gets queued instead of racing it, and fires the instant
+  // the pending navigation actually lands (see ownNavigation below).
+  let ownNavigationPending = false;
+  let queuedPushAfterSettle = false;
+
+  // Every place in this file that used to do a bare
+  // `ignoreNextPopstate = true; history.forward();` (or history.go()) now
+  // routes through here instead, so syncBackHistory() has a reliable signal
+  // for "don't push yet, one of our own navigations hasn't landed."
+  function ownNavigation(steps) {
+    ownNavigationPending = true;
+    ignoreNextPopstate = true;
+    const settle = () => {
+      window.removeEventListener('popstate', settle);
+      ownNavigationPending = false;
+      if (queuedPushAfterSettle) {
+        queuedPushAfterSettle = false;
+        navDepth += 1;
+        history.pushState({ navDepth }, '');
+      }
+    };
+    // ignoreNextPopstate stops the main popstate listener below from
+    // treating this as a user-initiated back press, but this dedicated
+    // listener still needs to observe the same event so ownNavigationPending
+    // clears at the real moment the navigation lands, not a guessed delay.
+    window.addEventListener('popstate', settle);
+    if (steps === 1) history.forward(); else history.go(steps);
+  }
+
+  // True (via a depth counter, not a plain boolean - see below) for the
+  // duration of a setTimeout/setInterval callback that auto-advances the
+  // screen with no user tap behind it (round-end auto-advance off
+  // Celebrate, checkpoint auto-continue, level-up auto-advance, a mode's
+  // own round-end timer such as Time Attack's countdown expiry or Memory
+  // Match's post-match delay calling into showCelebration). Any render()/
+  // pushState() that happens while this is active gets downgraded to
+  // replaceState() - see syncBackHistory() below. pushState() fired from
+  // inside a timer callback has no trusted user gesture behind it, and the
+  // browser can (and, per the confirmed live bug, does) silently skip that
+  // entry on the very next real back press: from the browser's perspective
+  // an untrusted-context pushState looks identical to a page trying to trap
+  // the back button. That's exactly what was happening - Celebrate -> Result
+  // were both reached via this same timer-driven path, but only Result
+  // being a real (non-swallow) screen made the skipped entry actually
+  // matter, so back on Result fell through to whatever was two entries back
+  // instead of one and exited the app. replaceState() sidesteps the problem
+  // entirely: it never adds a new entry for the anti-abuse heuristic to
+  // skip. The trade-off - the screen being left behind has its entry
+  // overwritten rather than kept underneath - is fine here because every
+  // caller wrapping with this flag is leaving a swallow screen (Celebrate/
+  // Level-Up/Stream-Checkpoint), where back already did nothing, so there
+  // was never a reachable destination on that entry to begin with.
+  let timerAdvanceDepth = 0; // counter, not boolean - see runAsTimerAdvance
+
+  // Wrap a setTimeout/setInterval callback's body in this so any render()
+  // it triggers - directly, or indirectly by calling into other functions
+  // that themselves call render() - gets the replaceState() treatment
+  // instead of a trap-able pushState(). Use this in every timer callback
+  // that changes state.screen without a user tap having caused it.
+  //
+  // Uses a depth counter rather than a simple true/false flag because these
+  // calls nest: Time Attack's countdown timer calls endTimeAttack(), which
+  // calls showCelebration(), which itself wraps its own render() the same
+  // way. A boolean would have the inner call's `finally` clear the flag
+  // back to false while the outer timer callback is still executing,
+  // silently un-arming protection for anything the outer callback does
+  // after the inner call returns. The counter only reaches zero - "fully
+  // unwound, no timer context active" - once every nested call has
+  // finished, regardless of nesting depth or order.
+  function runAsTimerAdvance(fn) {
+    timerAdvanceDepth += 1;
+    try {
+      fn();
+    } finally {
+      timerAdvanceDepth -= 1;
+    }
+  }
+
   // Called at the end of every real screen change (see the render() hook
   // below). Deliberately doesn't try to tell "going deeper" apart from
   // "going back a level" - every non-floor transition just gets its own
@@ -60,8 +151,7 @@
       if (navDepth > 0) {
         const steps = navDepth;
         navDepth = 0;
-        ignoreNextPopstate = true;
-        history.go(-steps);
+        ownNavigation(-steps);
       }
       return;
     }
@@ -80,8 +170,23 @@
       // one level per press, all the way to the floor.
       return;
     }
+    if (ownNavigationPending) {
+      // One of our own forward()/go() calls hasn't landed yet (see
+      // ownNavigation above) - pushing now would race it and can silently
+      // corrupt the stack order. Defer this push until that navigation
+      // actually settles.
+      queuedPushAfterSettle = true;
+      return;
+    }
     navDepth += 1;
-    history.pushState({ navDepth }, '');
+    if (timerAdvanceDepth > 0) {
+      // No trusted user gesture behind this transition - see
+      // runAsTimerAdvance() above. replaceState() instead of pushState() so
+      // there's no untrusted entry for the browser to silently skip.
+      history.replaceState({ navDepth }, '');
+    } else {
+      history.pushState({ navDepth }, '');
+    }
   }
 
   window.addEventListener('popstate', () => {
@@ -119,11 +224,9 @@
       // fresh one. Pushing a new entry here would be the same reactive,
       // no-gesture-behind-it pattern that caused the original back-skip bug;
       // forward() just moves within entries that already exist, so it
-      // shouldn't trip the same anti-abuse heuristic. ignoreNextPopstate
-      // means we don't have to do anything when that forward() lands.
+      // shouldn't trip the same anti-abuse heuristic.
       navDepth += 1;
-      ignoreNextPopstate = true;
-      history.forward();
+      ownNavigation(1);
       return;
     }
     if (BACK_QUIT_HANDLERS[screen]) {
@@ -133,10 +236,13 @@
         // Cancelled - nothing changed, so render() never got a chance to
         // re-arm. Restore the entry the back press just moved past via
         // forward() rather than pushing a new one - same reasoning as the
-        // swallow-screen case above.
+        // swallow-screen case above. Routed through ownNavigation() (not a
+        // bare forward()) so a fast second "Quit" tap right after Cancel
+        // can't race this forward() with a fresh pushState() - see the
+        // ownNavigation/ownNavigationPending comments above. This is the
+        // fix for the confirmed "quit, cancel, quit again" bug.
         navDepth += 1;
-        ignoreNextPopstate = true;
-        history.forward();
+        ownNavigation(1);
       }
       return;
     }
@@ -149,7 +255,6 @@
       // No known back action on this screen - stay safe rather than stuck
       // untrapped. Same forward()-over-pushState reasoning as above.
       navDepth += 1;
-      ignoreNextPopstate = true;
-      history.forward();
+      ownNavigation(1);
     }
   });

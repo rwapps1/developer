@@ -78,7 +78,11 @@
     const fill = document.getElementById('ta-timer-fill');
     if (fill) fill.style.width = (remainingMs / 60000 * 100) + '%';
     if (remainingMs <= 0) {
-      endTimeAttack();
+      // Timer expiry, not a tap - wrap so showCelebration's own render()
+      // and the eventual Celebrate -> Result auto-advance both get
+      // history.replaceState() instead of an untrusted pushState(). See
+      // runAsTimerAdvance in navigation.js.
+      runAsTimerAdvance(endTimeAttack);
     }
   }
 

@@ -195,7 +195,16 @@
     recordConjugateAnswer(combo, correct, optionText);
     render();
     const delay = correct ? 750 : 3000;
-    state.autoAdvanceTimer = setTimeout(() => { nextConjugateQuestion(); }, delay);
+    // Timer-driven, no tap behind it - wrap so nextConjugateQuestion's
+    // eventual showCelebration() call (on the round's last question) gets
+    // replaceState() instead of an untrusted pushState(). Also safe for the
+    // ordinary mid-round branch (render() straight back to 'conjugate'):
+    // that screen is a BACK_QUIT_HANDLERS entry, not a normal navigable
+    // screen, so hardware back on it always triggers the quit-confirm
+    // regardless of how many (or how few) history entries were pushed
+    // while working through the round - replaceState() there is harmless,
+    // just avoids growing the stack once per question for no benefit.
+    state.autoAdvanceTimer = setTimeout(() => { runAsTimerAdvance(nextConjugateQuestion); }, delay);
   }
 
   function evaluateConjugateRoundAchievements() {

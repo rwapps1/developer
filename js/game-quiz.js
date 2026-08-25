@@ -19,15 +19,33 @@
   // Shows the round-end celebration screen, then automatically continues
   // to nextScreen after a short hold (or immediately on tap — see the
   // click listener in renderCelebrate).
+  //
+  // Callers matter here: this function itself is sometimes invoked from a
+  // real user gesture (e.g. quitQuiz's on-screen Quit button) and sometimes
+  // from a timer with no gesture behind it at all (Time Attack's countdown
+  // hitting zero inside tickTimeAttack's setInterval; Memory Match's
+  // post-match setTimeout; Conjugate's auto-advance setTimeout). The
+  // render() below - entering 'celebrate' - inherits whichever context its
+  // caller is running in. If that context is untrusted (inTimerAdvance is
+  // already true because we're inside one of those setTimeout/setInterval
+  // callbacks), this render() must not push a fresh trusted-looking entry
+  // either - so it's wrapped the same way, rather than assuming the caller
+  // was always a tap the way the original Quiz-only version did.
   function showCelebration(variant, nextScreen) {
     clearCelebrateTimer();
     state.celebrateVariant = variant;
     state.celebrateNext = nextScreen;
     state.screen = 'celebrate';
-    render();
+    runAsTimerAdvance(render);
     pingActivity();
     const hold = variant === 'perfect' ? 2700 : 2200;
-    state.celebrateTimer = setTimeout(advanceFromCelebration, hold);
+    // Wrapped in runAsTimerAdvance (navigation.js) so the render() this
+    // triggers gets history.replaceState() instead of pushState() - this
+    // fires with no tap behind it, and an untrusted pushState() here is
+    // what caused the confirmed results-screen back-button bug (Celebrate
+    // -> Result both landed via this same auto-advance path; the browser
+    // silently skipped the untrusted entry on the next real back press).
+    state.celebrateTimer = setTimeout(() => runAsTimerAdvance(advanceFromCelebration), hold);
   }
 
   function advanceFromCelebration() {
@@ -64,7 +82,10 @@
     // Longer than a normal round-end Celebrate hold (2200ms) on purpose —
     // there's a real decision here (keep going or stop), not just a
     // glance, so it needs actual reading + deciding time.
-    state.celebrateTimer = setTimeout(continueStream, 4500);
+    // Wrapped in runAsTimerAdvance (navigation.js) - see the matching
+    // comment on showCelebration's setTimeout above; same untrusted-
+    // pushState risk applies to this auto-continue path.
+    state.celebrateTimer = setTimeout(() => runAsTimerAdvance(continueStream), 4500);
   }
 
   function continueStream() {
@@ -547,7 +568,13 @@
       render();
       pingActivity();
       clearLevelUpTimer();
-      state.levelUpTimer = setTimeout(advanceFromLevelUp, 3200);
+      // Wrapped in runAsTimerAdvance (navigation.js) - same untrusted-
+      // pushState risk as the Celebrate/checkpoint auto-advances above.
+      // advanceFromLevelUp calls a destination fn (goHome/startQuiz/etc.)
+      // that itself calls render(), so the flag has to be active for the
+      // whole call, not just a single render() - runAsTimerAdvance covers
+      // that since it wraps the entire function call, not just one line.
+      state.levelUpTimer = setTimeout(() => runAsTimerAdvance(advanceFromLevelUp), 3200);
     } else {
       destinationFn();
     }

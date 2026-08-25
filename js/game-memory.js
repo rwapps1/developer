@@ -120,7 +120,12 @@
 
       if (state.memoryMatchedCount >= state.memoryTotalPairs) {
         clearMemoryTimerInterval();
-        setTimeout(() => { endMemoryMatch(); }, 1200);
+        // Fires from a setTimeout with no tap directly behind it (the
+        // matching tap happened 1200ms earlier) - wrap so showCelebration's
+        // render() and the Celebrate -> Result auto-advance both get
+        // replaceState() instead of pushState(). See runAsTimerAdvance in
+        // navigation.js.
+        setTimeout(() => { runAsTimerAdvance(endMemoryMatch); }, 1200);
       }
     } else {
       state.memoryBusy = true;
