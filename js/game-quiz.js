@@ -619,17 +619,98 @@
     render();
   }
 
-  function quitQuiz() {
-    const msg = state.isStreamRound
+  // ---- Quit-confirm overlay (shared across all 4 game modes) ------------
+  // Replaces window.confirm() for the "quit this round?" prompt. A native
+  // confirm() is a browser/OS-level modal outside the app's own DOM and
+  // history state - a hardware back press while it's open is handled by
+  // the WebView/browser chrome itself, not by this app's popstate listener,
+  // so no amount of history-stack logic in navigation.js could ever
+  // reliably catch it. That's what was causing the confirmed "quit,
+  // cancel, quit again" bug: the second confirm() open/dismiss cycle could
+  // fall through to exiting the app instead of being caught as a normal
+  // back press. Modelling the dialog as an ordinary in-app state
+  // (state.quitConfirmMode + a render()ed overlay) fixes this structurally
+  // - it becomes just another screen transition, so it participates in
+  // exactly the same trusted-gesture pushState/replaceState handling as
+  // every other screen instead of being an opaque native dialog navigation
+  // can't see into.
+  //
+  // Each mode's own quit*() function (quitQuiz/quitTimeAttack/
+  // quitMemoryMatch/quitConjugateRound) is now just a thin call into
+  // showQuitConfirm(mode) - the actual "what does quitting THIS mode do"
+  // logic lives in QUIT_ACTIONS below, run only once the user taps Quit on
+  // the overlay.
+  const QUIT_MESSAGES = {
+    quiz: () => state.isStreamRound
       ? 'Stop here? Your progress so far will be saved.'
-      : 'Quit this round? Your progress on it will be scored as-is.';
-    if (!confirm(msg)) return;
-    clearAutoAdvanceTimer();
-    state.lastRoundWasStream = state.isStreamRound;
-    state.isStreamRound = false;
-    state.screen = 'result';
-    evaluateRoundAchievements();
+      : 'Quit this round? Your progress on it will be scored as-is.',
+    timeattack: () => 'Quit this round? Your progress on it will be scored as-is.',
+    'memory-play': () => 'Quit this board? Your progress on it will be lost.',
+    conjugate: () => 'Quit this round? Your progress on it will be scored as-is.',
+  };
+
+  const QUIT_ACTIONS = {
+    quiz: () => {
+      clearAutoAdvanceTimer();
+      state.lastRoundWasStream = state.isStreamRound;
+      state.isStreamRound = false;
+      state.screen = 'result';
+      evaluateRoundAchievements();
+    },
+    timeattack: () => {
+      endTimeAttack();
+    },
+    'memory-play': () => {
+      clearMemoryTimerInterval();
+      clearMemoryFlipTimer();
+      goHome();
+    },
+    conjugate: () => {
+      clearAutoAdvanceTimer();
+      state.screen = 'conjugate-result';
+      evaluateConjugateRoundAchievements();
+    },
+  };
+
+  // Called by each mode's Quit button/back-button handler. If the overlay
+  // for a DIFFERENT mode were somehow already open this would just replace
+  // it - not expected to happen in practice since only one play screen is
+  // ever active at a time, but guarding state.quitConfirmMode to the
+  // current screen keeps it self-correcting either way.
+  function showQuitConfirm(mode) {
+    state.quitConfirmMode = mode;
     render();
+  }
+
+  // Cancel: overlay closes, nothing else changes. Called by the overlay's
+  // own Cancel button, and by navigation.js when a hardware back press
+  // lands while the overlay is already open (same as tapping Cancel).
+  function cancelQuitConfirm() {
+    state.quitConfirmMode = null;
+    render();
+  }
+
+  // Confirm: run the mode's real quit logic, then close the overlay. The
+  // mode-specific action is responsible for setting state.screen to
+  // wherever quitting that mode actually goes (results screen, or straight
+  // home for Memory Match) - this just sequences "run it, then clear the
+  // overlay flag" so a stray re-render never shows the overlay again on
+  // the destination screen.
+  function confirmQuitCurrentMode() {
+    const mode = state.quitConfirmMode;
+    state.quitConfirmMode = null;
+    const action = QUIT_ACTIONS[mode];
+    if (action) action();
+    render();
+  }
+
+  // Thin per-mode entry points - unchanged names/call sites everywhere else
+  // in the codebase (render-quiz.js's Quit button, navigation.js's
+  // BACK_QUIT_HANDLERS) so this file is the only one that needed to change
+  // shape; every existing caller just triggers the overlay now instead of
+  // a native dialog.
+  function quitQuiz() {
+    showQuitConfirm('quiz');
   }
 
   // The 10 words for a Daily Double round: your lowest-box words first

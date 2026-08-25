@@ -230,20 +230,46 @@
       return;
     }
     if (BACK_QUIT_HANDLERS[screen]) {
-      const depthBeforeHandler = navDepth;
-      BACK_QUIT_HANDLERS[screen](); // may show a confirm; if confirmed this changes state.screen and calls render(), which re-arms itself via syncBackHistory()
-      if (navDepth === depthBeforeHandler) {
-        // Cancelled - nothing changed, so render() never got a chance to
-        // re-arm. Restore the entry the back press just moved past via
-        // forward() rather than pushing a new one - same reasoning as the
-        // swallow-screen case above. Routed through ownNavigation() (not a
-        // bare forward()) so a fast second "Quit" tap right after Cancel
-        // can't race this forward() with a fresh pushState() - see the
-        // ownNavigation/ownNavigationPending comments above. This is the
-        // fix for the confirmed "quit, cancel, quit again" bug.
-        navDepth += 1;
-        ownNavigation(1);
+      // The quit-confirm dialog is an in-app overlay (state.quitConfirmMode
+      // + a render()ed panel - see game-quiz.js), not a native confirm().
+      // That fixes the original "quit, cancel, quit again" bug: a native
+      // dialog sits outside the app's own DOM/history, so a hardware back
+      // press while it was open got handled by the WebView/OS chrome
+      // directly and never reached this listener at all - this code simply
+      // never ran on the press that exited. An in-app overlay is just
+      // ordinary render() state, so every back press against it now goes
+      // through this same, single code path.
+      //
+      // Opening the overlay from inside a popstate handler still can't
+      // safely pushState() - that's the reactive-push-inside-popstate
+      // pattern this file exists to avoid (no direct gesture behind it,
+      // so Chrome can silently skip the entry on a later back press,
+      // which is exactly what produced the ORIGINAL results-screen bug).
+      // So instead of pushing a new entry, a hardware back press
+      // repurposes the current entry via replaceState() to represent
+      // "overlay open", and there is deliberately no further in-app entry
+      // beyond that for a second press to land on:
+      //   - 1st back press on the play screen: opens the overlay
+      //     (replaceState, no new entry).
+      //   - back press while the overlay is open: treated as a genuine
+      //     "I want out" signal, same as tapping the overlay's own Quit
+      //     button - runs the real quit action rather than re-showing the
+      //     same confirmation a second time or falling through to exiting
+      //     the app/tab unexpectedly.
+      // Tapping the on-screen Quit button is unaffected by any of this -
+      // that path (showQuitConfirm called directly, not via popstate)
+      // still pushes a real, trusted entry the normal way, so back after
+      // tapping Quit correctly cancels-and-stays, exactly as before.
+      if (state.quitConfirmMode === screen) {
+        confirmQuitCurrentMode();
+        navDepth = landedDepth;
+        return;
       }
+      state.quitConfirmMode = screen;
+      reactingToPopstate = true;
+      render();
+      reactingToPopstate = false;
+      history.replaceState({ navDepth }, '');
       return;
     }
     const backBtn = document.getElementById('back-btn');

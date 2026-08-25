@@ -183,9 +183,9 @@
     showCelebration(perfect ? 'perfect' : 'finished', 'memory-result');
   }
 
+  // Shows the shared in-app quit-confirm overlay (game-quiz.js) instead of
+  // a native confirm() - see QUIT_MESSAGES/QUIT_ACTIONS there for what
+  // happens on Cancel/Quit.
   function quitMemoryMatch() {
-    if (!confirm('Quit this board? Your progress on it will be lost.')) return;
-    clearMemoryTimerInterval();
-    clearMemoryFlipTimer();
-    goHome();
+    showQuitConfirm('memory-play');
   }

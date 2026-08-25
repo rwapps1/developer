@@ -234,12 +234,11 @@
     render();
   }
 
+  // Shows the shared in-app quit-confirm overlay (game-quiz.js) instead of
+  // a native confirm() - see QUIT_MESSAGES/QUIT_ACTIONS there for what
+  // happens on Cancel/Quit.
   function quitConjugateRound() {
-    if (!confirm('Quit this round? Your progress on it will be scored as-is.')) return;
-    clearAutoAdvanceTimer();
-    state.screen = 'conjugate-result';
-    evaluateConjugateRoundAchievements();
-    render();
+    showQuitConfirm('conjugate');
   }
 
   // Same idea for verb combos. The person index can always be recovered

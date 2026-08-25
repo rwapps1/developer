@@ -161,7 +161,9 @@
     showCelebration(perfect ? 'perfect' : 'finished', 'result');
   }
 
+  // Shows the shared in-app quit-confirm overlay (game-quiz.js) instead of
+  // a native confirm() - see QUIT_MESSAGES/QUIT_ACTIONS there for what
+  // happens on Cancel/Quit.
   function quitTimeAttack() {
-    if (!confirm('Quit this round? Your progress on it will be scored as-is.')) return;
-    endTimeAttack();
+    showQuitConfirm('timeattack');
   }

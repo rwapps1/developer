@@ -105,4 +105,5 @@
     conjugateNewBestStreak: false,
     conjugateLastWasTypo: false,
     achievementGroup: null,
+    quitConfirmMode: null, // null | 'quiz' | 'timeattack' | 'memory-play' | 'conjugate' — which mode's in-app quit-confirm overlay is showing, if any. Replaces window.confirm(): a native dialog isn't part of the DOM/history the app controls, so a hardware back press while it's open is handled by the OS/WebView chrome itself rather than reaching this app's own popstate handling — confirmed as the cause of the "quit, cancel, quit again" back-button bug. An in-app overlay driven by this field is just another render() state change, so it participates in the same trusted-gesture history logic as everything else.
   };
