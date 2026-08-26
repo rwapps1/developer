@@ -96,16 +96,26 @@
       for (const tier of tiers) {
         if (tier.length === 0) continue;
         const fresh = tier.filter(t => !recent.includes(wordKey(t)));
-        if (fresh.length > 0) { candidatePairs = fresh; break; }
+        // Require a real handful of fresh options, not just one - two
+        // words that both happen to meet a format's box preference will
+        // otherwise just ping-pong between each other forever, since each
+        // one individually counts as "fresh" the moment the OTHER one was
+        // the most recent pick. STREAM_MIN_FRESH_POOL forces a move to the
+        // next broader tier instead whenever the ideal tier is this thin.
+        if (fresh.length >= STREAM_MIN_FRESH_POOL) { candidatePairs = fresh; break; }
       }
       if (candidatePairs === null) {
-        // Nothing anywhere is "fresh" (only plausible with a tiny pool or
-        // an extremely narrow tier) - fall back to the broadest non-empty
-        // tier rather than the narrowest, to maximise variety even though
-        // a repeat is unavoidable this once.
+        // No tier had enough fresh options - use whichever tier (from
+        // broadest down) has the most fresh candidates, so we still bias
+        // toward variety even without hitting the full threshold above.
+        let best = null;
         for (let idx = tiers.length - 1; idx >= 0; idx--) {
-          if (tiers[idx].length > 0) { candidatePairs = tiers[idx]; break; }
+          if (tiers[idx].length === 0) continue;
+          const fresh = tiers[idx].filter(t => !recent.includes(wordKey(t)));
+          if (fresh.length > 0) { best = fresh; break; }
+          if (best === null) best = tiers[idx]; // last resort: allow a repeat rather than an empty pool
         }
+        candidatePairs = best;
       }
 
       const p = weightedPickOne(candidatePairs, getWeight, lastKey);

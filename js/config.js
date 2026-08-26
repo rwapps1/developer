@@ -74,6 +74,16 @@
   // preferred box from being handed out over and over within a stream.
   const STREAM_RECENT_WORD_WINDOW = 10;
 
+  // Minimum number of "fresh" (not recently asked) candidates a box-preference
+  // tier must offer before buildStreamBatch() will accept it, rather than
+  // moving on to the next broader tier - see word-selection.js. A single
+  // fresh word isn't enough: two words that both happen to meet a format's
+  // preferred box will otherwise just ping-pong between each other forever,
+  // since each one individually counts as "fresh" the instant the OTHER one
+  // was the most recent pick. Requiring a real handful (not just "more than
+  // zero") keeps a thin tier from being treated as a viable pool on its own.
+  const STREAM_MIN_FRESH_POOL = 5;
+
   const ACHIEVEMENTS = {
     firstRound:  { name: 'First Steps',    desc: 'Complete your first round',              icon: '👟' },
     perfectRound:{ name: 'Perfect Round',  desc: 'Score 100% in a round',                  icon: '💯' },
