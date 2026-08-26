@@ -182,6 +182,23 @@
     opacity: 0;
     animation: celebrateTextIn 0.5s ease-out 0.26s forwards;
   }
+  /* Small Spanish-language flourish line, sits above the existing English
+     subline (kept, not replaced) on the Stream checkpoint screen. Reuses
+     celebrate-subline's fade-in but smaller/dimmer so the English subline
+     underneath it still reads as the primary line. */
+  .celebrate-flourish {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--cream-dim);
+    opacity: 0;
+    margin: 0 0 2px;
+    padding: 0 12px;
+    text-align: center;
+    animation: celebrateTextIn 0.5s ease-out 0.2s forwards;
+  }
+  .celebrate-flourish + .celebrate-subline {
+    animation-delay: 0.32s;
+  }
   @keyframes celebrateTextIn {
     0%   { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
@@ -285,6 +302,15 @@
     padding: 0 12px; text-align: center;
     opacity: 0; animation: celebrateTextIn 0.5s ease-out 0.7s forwards;
   }
+  /* Small Spanish-language flourish line, sits above the existing English
+     subline (kept, not replaced). Mirrors celebrate-flourish's treatment,
+     kept as its own class per this file's existing "no specificity bleed
+     with celebrate-*" convention (see block comment above). */
+  .levelup-flourish {
+    font-family: 'Inter', sans-serif; font-size: 13px; color: var(--cream-dim);
+    margin: 0 0 2px; padding: 0 12px; text-align: center;
+    opacity: 0; animation: celebrateTextIn 0.5s ease-out 0.62s forwards;
+  }
   .levelup-screen .tap-hint {
     position: absolute; bottom: 40px; left: 0; right: 0; text-align: center;
     font-size: 11.5px; letter-spacing: 0.04em; color: var(--cream-dim);
@@ -295,6 +321,7 @@
   @media (prefers-reduced-motion: reduce) {
     .levelup-ring-outer::before,
     .levelup-headline,
+    .levelup-flourish,
     .levelup-subline,
     .levelup-screen .tap-hint {
       animation: none !important;
@@ -309,6 +336,7 @@
     .celebrate-badge-swirl,
     .celebrate-badge-disc,
     .celebrate-headline,
+    .celebrate-flourish,
     .celebrate-subline,
     .celebrate-screen .tap-hint,
     .impact-ticks .tick {
