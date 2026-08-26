@@ -742,6 +742,7 @@
             <div class="celebrate-badge-disc">🔥</div>
           </div>
           <div class="celebrate-headline finished">${correctInBlock}/${STREAM_CHECKPOINT_SIZE} in a row!</div>
+          <p class="celebrate-flourish">¡Racha en marcha!</p>
           <p class="celebrate-subline">Keep going, or stop here for now.</p>
           <div class="checkpoint-actions">
             <button id="stream-continue-btn" class="btn-primary">Keep going →</button>
@@ -815,6 +816,7 @@
             <div class="levelup-disc-inner"><span class="levelup-num" id="levelup-num">${fromLevel}</span></div>
           </div>
           <h1 class="levelup-headline">Level Up!</h1>
+          <p class="levelup-flourish">¡Subiste de nivel!</p>
           <p class="levelup-subline">You reached Level ${level}</p>
         </div>
         <div class="tap-hint">Tap to continue</div>
